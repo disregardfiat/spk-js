@@ -2,6 +2,7 @@ import { SPKAccount } from '../core/account';
 import { BrocaCalculator } from '../tokens/broca';
 import Hash from 'ipfs-only-hash';
 import { Buffer } from 'buffer';
+import { Encryption, KeyManager } from '../crypto';
 
 export interface FileData {
   cid: string;
@@ -46,9 +47,13 @@ export interface UploadResult {
 export class SPKFile {
   private account: SPKAccount;
   private uploadController?: AbortController;
+  private encryption: Encryption;
+  private keyManager: KeyManager;
 
   constructor(account: SPKAccount) {
     this.account = account;
+    this.keyManager = new KeyManager();
+    this.encryption = new Encryption(this.keyManager, account.username);
   }
 
   /**
@@ -319,14 +324,18 @@ export class SPKFile {
    * Encrypt file for specific recipients
    */
   private async encrypt(file: File, recipients: string[]): Promise<any> {
-    // This would use WebCrypto API or a library like crypto-js
-    // For now, return mock encrypted data
+    const result = await this.encryption.encryptForUpload(file, recipients);
+    
+    // Convert the metadata format to match the expected structure
+    const encryptedKeys = result.metadata.encryptedKeys.reduce((acc, item) => {
+      acc[item.account] = item.encryptedKey;
+      return acc;
+    }, {} as Record<string, string>);
+    
     return {
-      encryptedData: await file.arrayBuffer(),
-      encryptedKeys: recipients.reduce((acc, recipient) => {
-        acc[recipient] = 'encrypted_key_' + recipient;
-        return acc;
-      }, {} as Record<string, string>),
+      encryptedData: await result.encryptedFile.arrayBuffer(),
+      encryptedKeys,
+      metadata: result.metadata
     };
   }
 

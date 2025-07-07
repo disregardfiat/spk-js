@@ -154,14 +154,69 @@ await spk.deleteFile('QmXxx...');
 
 ### Encryption
 
+SPK-JS provides client-side file encryption using AES-256-GCM with Hive memo key wrapping:
+
 ```javascript
 // Upload encrypted file
 const result = await spk.upload(file, {
-  encrypt: ['alice', 'bob', 'charlie']
+  encrypt: ['alice', 'bob', 'charlie'] // Recipients who can decrypt
 });
 
-// Decrypt file (if you have access)
-const decrypted = await spk.decrypt(result.cid);
+// The file is encrypted with a random AES key
+// The AES key is wrapped for each recipient using their Hive memo key
+// Only specified recipients can decrypt the file
+```
+
+#### How It Works
+
+1. **AES Key Generation**: A random 256-bit AES key is generated for each file
+2. **File Encryption**: The file is encrypted using AES-256-GCM
+3. **Key Wrapping**: The AES key is encrypted for each recipient using their Hive memo key
+4. **Upload**: The encrypted file and wrapped keys are uploaded to IPFS
+
+#### Manual Encryption (Advanced)
+
+```javascript
+import { Encryption, KeyManager } from '@spknetwork/spk-js';
+
+// Initialize encryption
+const keyManager = new KeyManager();
+const encryption = new Encryption(keyManager);
+
+// Generate AES key
+const aesKey = await encryption.generateAESKey();
+
+// Encrypt file
+const encrypted = await encryption.encryptFile(file, aesKey);
+
+// Fetch recipient memo keys
+const recipients = await keyManager.fetchMemoKeys(['alice', 'bob']);
+
+// Wrap AES key for recipients
+const wrappedKeys = await encryption.wrapKeyForRecipients(aesKey, recipients);
+```
+
+#### Wallet Integration
+
+```javascript
+import { walletEncryption } from '@spknetwork/spk-js';
+
+// Check if Hive Keychain is available
+if (walletEncryption.isKeychainAvailable()) {
+  // Use Keychain for encryption
+  const encrypted = await walletEncryption.encryptMemoKeychain(
+    'sender',
+    'recipient',
+    'aes-key-data'
+  );
+} else {
+  // Use custom wallet with synchronous encryption
+  const encrypted = walletEncryption.encryptMemoSync(
+    privateKey,
+    recipientPublicKey,
+    'aes-key-data'
+  );
+}
 ```
 
 ## Virtual File System

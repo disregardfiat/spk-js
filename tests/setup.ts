@@ -6,14 +6,69 @@ if (typeof TextDecoder === 'undefined') {
   global.TextEncoder = TextEncoder;
 }
 
+// Import crypto from node
+const { webcrypto } = require('crypto');
+
 // Mock browser APIs that are not available in jsdom
-global.crypto = {
-  subtle: {
-    generateKey: jest.fn(),
-    encrypt: jest.fn(),
-    decrypt: jest.fn(),
+// Use node's webcrypto if available, otherwise create a mock
+const mockCrypto = webcrypto || {
+  getRandomValues: <T extends ArrayBufferView | null>(array: T): T => {
+    if (array && array instanceof Uint8Array) {
+      for (let i = 0; i < array.length; i++) {
+        array[i] = Math.floor(Math.random() * 256);
+      }
+    }
+    return array;
   },
-} as any;
+  subtle: {
+  generateKey: jest.fn().mockImplementation(async (_algorithm) => {
+    return {
+      type: 'secret',
+      algorithm: { name: 'AES-GCM', length: 256 },
+      extractable: true,
+      usages: ['encrypt', 'decrypt']
+    };
+  }),
+  encrypt: jest.fn().mockImplementation(async (_algorithm, _key, data) => {
+    // Simple mock encryption - just return the data with some padding
+    const encrypted = new ArrayBuffer(data.byteLength + 16); // Add 16 bytes for tag
+    new Uint8Array(encrypted).set(new Uint8Array(data));
+    return encrypted;
+  }),
+  decrypt: jest.fn().mockImplementation(async (_algorithm, _key, data) => {
+    // Simple mock decryption - just return the data minus padding
+    const decrypted = new ArrayBuffer(data.byteLength - 16);
+    new Uint8Array(decrypted).set(new Uint8Array(data).slice(0, -16));
+    return decrypted;
+  }),
+  exportKey: jest.fn().mockImplementation(async (_format, _key) => {
+    // Mock export for AES key
+    const mockKey = new ArrayBuffer(32); // 256-bit key
+    new Uint8Array(mockKey).fill(42); // Fill with dummy data
+    return mockKey;
+  }),
+  importKey: jest.fn().mockImplementation(async (_format, _keyData, algorithm, extractable, keyUsages) => {
+    return {
+      type: algorithm.name.includes('RSA') ? 'public' : 'secret',
+      algorithm,
+      extractable,
+      usages: keyUsages
+    };
+  }),
+  digest: jest.fn().mockImplementation(async (_algorithm, _data) => {
+    // Mock SHA-256 digest
+    const hash = new ArrayBuffer(32);
+    new Uint8Array(hash).fill(77); // Fill with dummy data
+    return hash;
+  })
+  }
+};
+
+// Assign the mock crypto object to global and globalThis
+global.crypto = mockCrypto as any;
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).crypto = mockCrypto;
+}
 
 // Mock fetch if not available
 if (!global.fetch) {
