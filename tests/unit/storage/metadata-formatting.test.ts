@@ -368,11 +368,9 @@ describe('Metadata String Formatting', () => {
         const metadata = new SPKFileMetadata({ tags });
         const formatted = metadata.toSPKFormat();
         
-        if (expected === undefined) {
-          expect(formatted.flag).toBeUndefined();
-        } else {
-          expect(formatted.flag).toBe(expected);
-        }
+        // Use a single expect with conditional value
+        const actualFlag = formatted.flag;
+        expect(actualFlag).toBe(expected);
       });
     });
   });

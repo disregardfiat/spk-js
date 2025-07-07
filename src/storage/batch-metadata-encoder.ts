@@ -74,7 +74,7 @@ export class BatchMetadataEncoder {
     }
     
     // Remove leading slash if present
-    let folderPath = path.startsWith('/') ? path.substring(1) : path;
+    const folderPath = path.startsWith('/') ? path.substring(1) : path;
     
     // Default to Misc if empty after slash removal
     if (!folderPath) {

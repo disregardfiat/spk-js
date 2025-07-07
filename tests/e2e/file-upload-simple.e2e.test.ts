@@ -3,6 +3,7 @@ import { SPKAccount } from '../../src/core/account';
 import { SPKAPI } from '../../src/core/api';
 import { BatchMetadataEncoder } from '../../src/storage/batch-metadata-encoder';
 import { UploadResult } from '../../src/storage/file';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const MockTroleServer = require('./mock-trole-server');
 
 describe('File Upload E2E Tests - Simple', () => {

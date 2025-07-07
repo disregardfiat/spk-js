@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+/* eslint-disable no-console */
 const express = require('express');
 const cors = require('cors');
 const Busboy = require('busboy');
@@ -115,7 +117,7 @@ class MockTroleServer {
       const busboy = Busboy({ headers: req.headers });
       const filePath = path.join(this.uploadsDir, `${fileId}-${contract}`);
       
-      busboy.on('file', async (name, file, info) => {
+      busboy.on('file', async (name, file) => {
         console.log(`[Mock Trole] Receiving file chunk: ${fileId}, bytes ${rangeStart}-${rangeEnd}`);
         
         try {

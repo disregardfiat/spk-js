@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const MockTroleServer = require('./mock-trole-server');
 
 describe('SPK Upload Flow E2E Test', () => {
@@ -55,6 +56,7 @@ describe('SPK Upload Flow E2E Test', () => {
     console.log('Upload authorized:', authData);
     
     // Step 3: Upload file
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const FormData = require('form-data');
     const formData = new FormData();
     const buffer = Buffer.from(testContent);
