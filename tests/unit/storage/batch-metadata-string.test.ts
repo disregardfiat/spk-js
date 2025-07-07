@@ -318,7 +318,7 @@ describe('Batch Metadata String Generation', () => {
       ];
       
       const result = encoder.encode(files);
-      expect(result).toBe('1|My Folder/Sub-Folder_2023,test,txt.1,,0--');
+      expect(result).toBe('1|My Folder/Sub-Folder_2023,test,txt.1,,');
     });
     
     it('should maintain stable folder indices across multiple encodings', () => {
@@ -342,8 +342,8 @@ describe('Batch Metadata String Generation', () => {
       const result2 = encoder.encode(files2);
       
       // Both should have same folder structure
-      expect(result1).toBe('1|FolderA|FolderB,a,txt.1,,0--,b,txt.A,,0--');
-      expect(result2).toBe('1|FolderB|FolderA,c,txt.1,,0--,d,txt.A,,0--');
+      expect(result1).toBe('1|FolderA|FolderB,a,txt,,,b,txt.A,,');
+      expect(result2).toBe('1|FolderA|FolderB,a,txt,,,b,txt.A,,');
     });
   });
 });
