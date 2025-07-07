@@ -11,7 +11,6 @@ export * from './storage/file';
 export * from './storage/metadata';
 export * from './tokens/broca';
 export * from './drive';
-export { default as SPKDriveVue } from './drive/SPKDriveVue';
 
 // Export wallet calculation methods
 export * as walletCalculations from './wallet/calculations';
