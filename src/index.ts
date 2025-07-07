@@ -12,6 +12,11 @@ export * from './storage/metadata';
 export * from './tokens/broca';
 export * from './drive';
 
+// Re-export specific classes for easier access
+export { BrocaCalculator } from './tokens/broca';
+export { SPKAccount } from './core/account';
+export { SPKAPI } from './core/api';
+
 // Export wallet calculation methods
 export * as walletCalculations from './wallet/calculations';
 export * as precision from './utils/precision';
@@ -197,4 +202,67 @@ export default class SPK {
     // This would implement decryption logic
     throw new Error('Decryption not yet implemented');
   }
-}
+
+  /**
+   * Get network statistics
+   */
+  async getNetworkStats(): Promise<any> {
+    return this.account.api.get('/stats');
+  }
+
+  /**
+   * Get storage providers
+   */
+  async getStorageProviders(): Promise<any[]> {
+    const stats = await this.getNetworkStats();
+    const providers = [];
+    
+    if (stats && stats.peers) {
+      for (const [account, data] of Object.entries(stats.peers)) {
+        if (data.ipfs) {
+          providers.push({
+            account,
+            ipfs: data.ipfs,
+            bid: data.bid || 0.015,
+            ...data
+          });
+        }
+      }
+    }
+    
+    return providers.sort((a, b) => a.bid - b.bid);
+  }
+
+  /**
+   * Create storage contract
+   */
+  async createContract(contractData: any): Promise<any> {
+    const auth = await this.account.sign(`create_contract:${Date.now()}`);
+    return this.account.api.post('/api/new_contract', contractData, auth);
+  }
+
+  /**
+   * Get existing contract for a broker
+   */
+  async getExistingContract(broker: string): Promise<any> {
+    const contracts = await this.listContracts();
+    return contracts.find(c => 
+      c.broker === broker && 
+      c.status === 'active' &&
+      c.broca_remaining > 0
+    );
+  }
+
+  /**
+   * Direct upload (public node)
+   */
+  async directUpload(files: File[], options: UploadOptions = {}): Promise<UploadResult[]> {
+    const results = [];
+    
+    for (const file of files) {
+      const result = await this.upload(file, options);
+      results.push(result);
+    }
+    
+    return results;
+  }

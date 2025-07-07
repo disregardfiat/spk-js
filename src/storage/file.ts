@@ -139,6 +139,24 @@ export class SPKFile {
   }
 
   /**
+   * Create storage contract
+   */
+  private async createContract(contractData: any): Promise<any> {
+    const auth = await this.account.sign(`create_contract:${Date.now()}`);
+    
+    const response = await this.account.api.post('/api/new_contract', {
+      ...contractData,
+      username: this.account.username
+    }, auth);
+    
+    if (!response || response.error) {
+      throw new Error(response?.error || 'Failed to create contract');
+    }
+    
+    return response;
+  }
+
+  /**
    * Upload file to IPFS via TROLE
    */
   private async uploadToIPFS(
