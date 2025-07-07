@@ -22,78 +22,27 @@ function Base64toNumber(chars) {
  * Calculate available BROCA credits
  * @param {string} last - Last BROCA state in format "amount,blocknum"
  * @param {number} broca_refill - BROCA refill rate (default: 144000)
- * @param {number} spk_power - User's SPK power in milliunits
+ * @param {number} broca_power - User's BROCA power in milliunits
  * @param {number} head_block - Current head block number
  * @returns {number} - Available BROCA credits
  */
-function broca_calc(last = '0,0', broca_refill = 144000, spk_power = 0, head_block = 0) {
-  if (!spk_power) return 0;
+function broca_calc(last = '0,0', broca_refill = 144000, broca_power = 0, head_block = 0) {
+  if (!broca_power) return 0;
   
   const parts = last.split(',');
   const lastAmount = parseInt(parts[0]) || 0;
   const lastBlock = Base64toNumber(parts[1] || '0');
   
   const blocksPassed = head_block - lastBlock;
-  const accured = parseInt(parseFloat(broca_refill) * blocksPassed / (spk_power * 1000));
+  const accured = parseInt(parseFloat(broca_refill) * blocksPassed / (broca_power * 1000));
   
   let total = lastAmount + accured;
-  if (total > spk_power * 1000) {
-    total = spk_power * 1000;
+  if (total > broca_power * 1000) {
+    total = broca_power * 1000;
   }
   
   return total;
 }
-
-/**
- * Calculate pending SPK rewards
- * @param {Object} accountApi - Account data object
- * @param {Object} stats - Network stats object
- * @returns {number} - Pending SPK rewards
- */
-function calculateSpkReward(accountApi, stats) {
-  const spk_block = accountApi.spk_block || 0;
-  const head_block = accountApi.head_block || 0;
-  const diff = head_block - spk_block;
-  
-  // No rewards if no spk_block set or less than 28800 blocks (24 hours)
-  if (!spk_block || diff < 28800) {
-    return 0;
-  }
-  
-  // Calculate periods (each period is 28800 blocks = 24 hours)
-  const periods = parseInt(diff / 28800);
-  
-  // Calculate rewards from different sources
-  const govReward = accountApi.gov ? simpleInterest(accountApi.gov, periods, stats.spk_rate_lgov || 0) : 0;
-  const powReward = accountApi.pow ? simpleInterest(accountApi.pow, periods, stats.spk_rate_lpow || 0) : 0;
-  
-  // Calculate delegation rewards
-  const grantedAmount = parseInt(accountApi.granted?.t > 0 ? accountApi.granted.t : 0);
-  const grantingAmount = parseInt(accountApi.granting?.t > 0 ? accountApi.granting.t : 0);
-  const delegationReward = simpleInterest(grantedAmount + grantingAmount, periods, stats.spk_rate_ldel || 0);
-  
-  const totalReward = govReward + powReward + delegationReward;
-  
-  return totalReward > 0 ? totalReward : 0;
-}
-
-/**
- * Calculate simple interest
- * @param {number} principal - Principal amount
- * @param {number} periods - Number of periods
- * @param {number} rate - Interest rate
- * @returns {number} - Interest earned
- */
-function simpleInterest(principal, periods, rate) {
-  const amount = principal * (1 + parseFloat(rate) / 365);
-  const interest = amount - principal;
-  return parseInt(interest * periods);
-}
-
-/**
- * Export alias for compatibility
- */
-const reward_spk = calculateSpkReward;
 
 /**
  * Format number with commas and decimals
@@ -169,8 +118,6 @@ function parseHiveBalance(balance) {
 module.exports = {
   Base64toNumber,
   broca_calc,
-  calculateSpkReward,
-  reward_spk,
   formatNumber,
   formatSPKAmount,
   getHiveAccount,

@@ -1,18 +1,27 @@
 import { SPKAccount } from './core/account';
 import { SPKFile, UploadOptions, UploadResult } from './storage/file';
+import { SPKFileUpload, BatchUploadResult } from './storage/file-upload';
 import { BrocaCalculator } from './tokens/broca';
 import { SPKConfig } from './core/config';
 import { SPKDrive } from './drive';
+import { ProtocolManager } from './core/protocol';
+import { TokenOperations } from './tokens/operations';
 
 export * from './core/account';
 export * from './core/api';
 export * from './core/config';
+export * from './core/keychain-adapter';
+export * from './core/protocol';
+export * from './tokens/operations';
 export { 
   UploadOptions, 
   UploadResult, 
-  FileData 
+  FileData,
+  FileMetadataItem
 } from './storage/file';
+export { BatchUploadResult } from './storage/file-upload';
 export * from './storage/metadata';
+export * from './storage/file-metadata';
 export * from './tokens/broca';
 export { 
   SPKDrive,
@@ -40,12 +49,23 @@ export * from './ui/icons';
 export default class SPK {
   public account: SPKAccount;
   private file: SPKFile;
+  private fileUpload: SPKFileUpload;
   public drive: SPKDrive;
+  private protocol: ProtocolManager;
+  private tokens: TokenOperations;
 
   constructor(username: string, options: Partial<SPKConfig> = {}) {
     this.account = new SPKAccount(username, options);
     this.file = new SPKFile(this.account);
+    this.fileUpload = new SPKFileUpload(this.account);
     this.drive = new SPKDrive(this.account);
+    this.protocol = new ProtocolManager(this.account.node);
+    this.tokens = new TokenOperations(
+      username,
+      this.account.keychainAdapter,
+      this.account.api,
+      this.protocol
+    );
   }
 
   /**
@@ -53,13 +73,15 @@ export default class SPK {
    */
   async init(): Promise<void> {
     await this.account.init();
+    await this.protocol.updateProtocols();
   }
 
   /**
-   * Upload a file to SPK Network
+   * Upload single or multiple files to SPK Network
+   * Supports batch uploads with individual metadata
    */
-  async upload(file: File, options?: UploadOptions): Promise<UploadResult> {
-    return this.file.upload(file, options);
+  async upload(files: File | File[], options?: UploadOptions): Promise<UploadResult | BatchUploadResult> {
+    return this.fileUpload.upload(files, options);
   }
 
   /**
@@ -69,36 +91,133 @@ export default class SPK {
     larynx: number;
     spk: number;
     broca: number;
+    ClaimableLARYNX?: number;
+    ClaimableSPK?: number;
+    LP?: number;
+    SP?: number;
+    BP?: number;
+    BRC?: string;
   }> {
-    return this.account.getBalances(refresh);
+    const balances = await this.account.getBalances(refresh);
+    
+    // Get network stats for BROCA storage calculation
+    let brocaStorageSize = '0MB';
+    try {
+      const stats = await this.account.api.get('/stats');
+      if (stats && stats.channel_bytes) {
+        brocaStorageSize = await this.calculateBrocaStorage(balances.broca, stats.channel_bytes);
+      }
+    } catch (error) {
+      console.warn('Failed to calculate BROCA storage size:', error);
+    }
+    
+    // Extended balance info from account data
+    return {
+      ...balances,
+      ClaimableLARYNX: this.account.claim || 0,
+      ClaimableSPK: this.account.drop?.availible?.amount || 0,
+      LP: this.account.poweredUp || 0,
+      SP: this.account.spk_power || 0,
+      BP: this.account.pow_broca || 0,
+      BRC: brocaStorageSize
+    };
   }
 
   /**
-   * Send LARYNX tokens
+   * Calculate BROCA storage capacity
+   */
+  private async calculateBrocaStorage(brocaCredits: number, channelBytes: number): Promise<string> {
+    // BROCA credits * channel_bytes = total bytes available
+    const totalBytes = brocaCredits * channelBytes;
+    
+    // Format as human-readable size
+    if (totalBytes < 1024) {
+      return `${totalBytes}B`;
+    } else if (totalBytes < 1024 * 1024) {
+      const kb = totalBytes / 1024;
+      return `${kb.toFixed(2)}KB`;
+    } else if (totalBytes < 1024 * 1024 * 1024) {
+      const mb = totalBytes / (1024 * 1024);
+      return `${mb.toFixed(2)}MB`;
+    } else {
+      const gb = totalBytes / (1024 * 1024 * 1024);
+      return `${gb.toFixed(2)}GB`;
+    }
+  }
+
+  /**
+   * Send tokens using amount string (e.g., "50.000 BROCA")
+   */
+  async send(amountStr: string, to: string, memo = ''): Promise<any> {
+    return this.tokens.send(amountStr, to, memo);
+  }
+
+  /**
+   * Send LARYNX tokens (in millitokens)
    */
   async sendLarynx(amount: number, to: string, memo = ''): Promise<any> {
-    return this.account.sendLarynx(amount, to, memo);
+    return this.tokens.sendLarynx(amount, to, memo);
   }
 
   /**
-   * Send SPK tokens
+   * Send SPK tokens (in millitokens)
    */
   async sendSpk(amount: number, to: string, memo = ''): Promise<any> {
-    return this.account.sendSpk(amount, to, memo);
+    return this.tokens.sendSpk(amount, to, memo);
+  }
+
+  /**
+   * Send BROCA tokens
+   */
+  async sendBroca(amount: number, to: string, memo = ''): Promise<any> {
+    return this.tokens.sendBroca(amount, to, memo);
+  }
+
+  /**
+   * Power up BROCA tokens
+   */
+  async brocaPowerUp(amount: number): Promise<any> {
+    return this.tokens.powerUp('BROCA', amount);
+  }
+
+  /**
+   * Power down SPK tokens
+   */
+  async spkPowerDown(amount: number): Promise<any> {
+    return this.tokens.powerDown('SPK', amount);
   }
 
   /**
    * Power up LARYNX tokens
    */
   async powerUp(amount: number): Promise<any> {
-    return this.account.powerUp(amount);
+    return this.tokens.powerUp('LARYNX', amount);
   }
 
   /**
    * Power down LARYNX tokens
    */
   async powerDown(amount: number): Promise<any> {
-    return this.account.powerDown(amount);
+    return this.tokens.powerDown('LARYNX', amount);
+  }
+
+  /**
+   * Claim token rewards
+   */
+  async claim(token: 'LARYNX' | 'SPK' = 'LARYNX'): Promise<any> {
+    return this.tokens.claim(token);
+  }
+
+  /**
+   * Register as SPK Network node
+   */
+  async registerNode(
+    ipfsId: string,
+    domain: string,
+    bidRate: number = 500,
+    decayMargin: number = 100
+  ): Promise<any> {
+    return this.tokens.registerNode(ipfsId, domain, bidRate, decayMargin);
   }
 
   /**
@@ -422,15 +541,18 @@ export default class SPK {
 
   /**
    * Direct upload (public node)
+   * Always returns array of UploadResult, even for batch uploads
    */
   async directUpload(files: File[], options: UploadOptions = {}): Promise<UploadResult[]> {
-    const results = [];
+    // Use batch upload functionality
+    const result = await this.upload(files, options);
     
-    for (const file of files) {
-      const result = await this.upload(file, options);
-      results.push(result);
+    // If it's a BatchUploadResult, extract the results array
+    if ('results' in result) {
+      return result.results;
     }
     
-    return results;
+    // If it's a single UploadResult (shouldn't happen with array input)
+    return [result];
   }
 }

@@ -15,15 +15,14 @@ JavaScript library for interacting with SPK Network decentralized storage.
 
 ## Installation
 
-```bash
-npm install @spknetwork/spk-js
+Place the library in your package.json
+```json
+"@spknetwork/spk-js": "github:disregardfiat/spk-js#main",
 ```
+run `npm install`
 
 Or via CDN:
-
-```html
-<script src="https://unpkg.com/@spknetwork/spk-js/dist/spk.js"></script>
-```
+`soon`
 
 ## Quick Start
 
@@ -38,23 +37,53 @@ await spk.init();
 const file = document.getElementById('fileInput').files[0];
 const result = await spk.upload(file);
 
-console.log(`File uploaded: https://ipfs.dlux.io/ipfs/${result.cid}`);
+console.log(`File uploaded: ${result.cid}`);
 ```
 
 ## Usage
 
 ### Authentication
 
-SPK-JS uses Hive Keychain for secure authentication:
+SPK-JS supports two authentication methods:
+
+#### 1. Hive Keychain (Auto-detected)
+
+If Hive Keychain is available in the browser, it will be used automatically:
 
 ```javascript
-const spk = new SPK('username', {
-  node: 'https://spktest.dlux.io', // Optional: custom node
-  keychain: window.hive_keychain     // Optional: explicit keychain
-});
-
-await spk.init(); // Initializes account data
+const spk = new SPK('username');
+await spk.init(); // Auto-detects window.hive_keychain
 ```
+
+#### 2. Custom Signer
+
+You can provide a custom signer object with the following interface:
+
+```javascript
+const customSigner = {
+  requestSignature: (account, challenge, keyType, callback) => {
+    // Your signing implementation
+    // callback({ signature: '...', publicKey: '...' }) on success
+    // callback({ error: 'error message' }) on failure
+  },
+  requestBroadcast: (account, operations, keyType, callback) => {
+    // Your broadcast implementation for raw Hive operations
+    // operations is an array of Hive transaction operations
+    // callback({ result: { id: 'txid' } }) on success
+    // callback({ error: 'error message' }) on failure
+  }
+};
+
+const spk = new SPK('username', {
+  keychain: customSigner
+});
+```
+
+**Note**: The library automatically detects whether you're using a custom signer or Hive Keychain and adapts accordingly.
+
+For synchronous implementations, you can also provide:
+- `requestSignatureSynchronous(account, challenge, keyType)` - Returns `{ signature, publicKey }` or throws
+- `requestBroadcastSynchronous(account, operations, keyType)` - Returns `{ result: { id } }` or throws
 
 ### File Upload
 
@@ -68,32 +97,43 @@ const result = await spk.upload(file);
 Advanced upload with options:
 
 ```javascript
-const result = await spk.upload(file, {
+const result = await spk.upload(files,{
+  // contract options {} defaults to autoRenew
   encrypt: ['alice', 'bob'],  // Encrypt for specific users
-  folder: 'Documents',        // Virtual folder
-  tags: ['important'],        // Metadata tags
-  duration: 90,              // Storage duration in days
-  autoRenew: true,           // Auto-renew contract
-  onProgress: (percent) => {
-    console.log(`Upload progress: ${percent}%`);
+  autoRenew: true, 
+  metaData: [{
+      name: 'Different',
+      FileIndex: 0,
+      ext: 'jpg',
+      path: '/Documents',        // See Virtual File System
+      thumbnail: `CID`, // custom thumbnail CID or address
+      tags: ['important'],        // See Tags
+      license: 'CC0', // See License
+      labels: '', // See Labels
+      autoRenew: true,           // Auto-renew contract
+      onProgress: (percent) => {
+        console.log(`Upload progress: ${percent}%`);
   }
-});
+}]);
 ```
+
+The user will be prompted for signatures and brodcasts as appropriate. It is better to batch file uploads where possible to minimize interactions.
 
 ### Token Operations
 
 ```javascript
 // Get balances
 const balances = await spk.getBalances();
-// { larynx: 1000, spk: 500, broca: 250000 }
+// { ClaimableLARYNX: 1, LARYNX: 1000, ClaimableSPK: 2, SPK: 500, BROCA: 250, LP: 100, SP: 10, BP: 1000, BRC: '35Mb' }
 
 // Send tokens
-await spk.sendLarynx(100, 'recipient', 'Optional memo');
+await spk.sendLarynx(100, 'recipient', 'Optional memo'); //in millitokens
 await spk.sendSpk(50, 'recipient');
+await spk.send('50.000 BROCA', 'charlie') // will parse floats and token names
 
 // Power up/down
-await spk.powerUp(100);    // Stake LARYNX
-await spk.powerDown(100);  // Unstake LARYNX
+await spk.brocaPowerUp(100);    // Stake LARYNX
+await spk.spkPowerDown(100);  // Unstake LARYNX
 ```
 
 ### File Management
@@ -108,7 +148,7 @@ const files = await spk.listFiles({
 // Get file info
 const file = await spk.getFile('QmXxx...');
 
-// Delete file (stops renewal)
+// Delete file (stops renewal, places in "Trash")
 await spk.deleteFile('QmXxx...');
 ```
 
@@ -122,6 +162,122 @@ const result = await spk.upload(file, {
 
 // Decrypt file (if you have access)
 const decrypted = await spk.decrypt(result.cid);
+```
+
+## Virtual File System
+
+The SPK Network provides a virtual file system for organizing uploaded files. Files can be organized into folders and tagged with metadata for better organization and discovery.
+
+## Metadata
+
+SPK Network supports rich metadata for uploaded files including tags, labels, and licenses. This metadata helps with file organization, discovery, and rights management.
+
+### Tags
+
+Tags are content warnings and file type indicators stored as bitwise flags:
+
+```javascript
+import { SPKFileMetadata, TAGS } from '@spknetwork/spk-js';
+
+// Create metadata with tags
+const metadata = new SPKFileMetadata({
+  tags: [4, 8] // NSFW + Executable
+});
+
+// Or add tags individually
+metadata.addTag(4); // Add NSFW tag
+metadata.removeTag(8); // Remove Executable tag
+
+// Check if tag is present
+if (metadata.hasTag(4)) {
+  console.log('Content is NSFW');
+}
+
+// Available tags:
+// 4 - NSFW (Not Safe For Work)
+// 8 - Executable (Is an executable file)
+```
+
+### Labels
+
+Labels are visual organization markers stored as a string of characters:
+
+```javascript
+// Add labels to files
+metadata.addLabel('1'); // Important
+metadata.addLabel('2'); // Favorite
+metadata.addLabel('5'); // Orange
+
+// Check labels
+if (metadata.hasLabel('1')) {
+  console.log('File is marked as important');
+}
+
+// Available labels:
+// 0 - Miscellaneous
+// 1 - Important
+// 2 - Favorite (default)
+// 3 - Random
+// 4 - Red
+// 5 - Orange
+// 6 - Yellow
+// 7 - Green
+// 8 - Blue
+// 9 - Purple
+```
+
+### Licenses
+
+Licenses define usage rights using Creative Commons standards:
+
+```javascript
+// Set a license
+metadata.setLicense('7'); // CC0 Public Domain
+
+// Get license details
+const license = metadata.getLicenseDetails();
+console.log(license.description); // "CC0: Public Domain Grant"
+console.log(license.link); // "https://creativecommons.org/..."
+
+// Available licenses:
+// 1 - CC BY (Attribution)
+// 2 - CC BY-SA (Attribution Share-Alike)
+// 3 - CC BY-ND (Attribution No-Derivatives)
+// 4 - CC BY-NC-ND (Attribution Non-Commercial No-Derivatives)
+// 5 - CC BY-NC (Attribution Non-Commercial)
+// 6 - CC BY-NC-SA (Attribution Non-Commercial Share-Alike)
+// 7 - CC0 (Public Domain)
+```
+
+### Using Metadata with Uploads
+
+```javascript
+// Upload with metadata
+const result = await spk.upload(files, {
+  metaData: [{
+    name: 'vacation-photo',
+    FileIndex: 0,
+    ext: 'jpg',
+    thumb: 'https://example.com/thumb.jpg',
+    path: '/Photos/Vacation',
+    tags: [4], // NSFW
+    labels: '125', // Important, Favorite, Orange
+    license: '1' // CC BY
+  }]
+});
+
+// Or use the SPKFileMetadata class
+const metadata = new SPKFileMetadata({
+  name: 'document',
+  ext: 'pdf',
+  tags: [8], // Executable
+  labels: '1', // Important
+  license: '2' // CC BY-SA
+});
+
+const result = await spk.upload(file, {
+  metaData: [metadata.toSPKFormat()]
+});
 ```
 
 ## API Reference

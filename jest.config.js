@@ -31,7 +31,8 @@ module.exports = {
     '^@core/(.*)$': '<rootDir>/src/core/$1',
     '^@storage/(.*)$': '<rootDir>/src/storage/$1',
     '^@tokens/(.*)$': '<rootDir>/src/tokens/$1',
-    '^@utils/(.*)$': '<rootDir>/src/utils/$1'
+    '^@utils/(.*)$': '<rootDir>/src/utils/$1',
+    'ipfs-only-hash': '<rootDir>/tests/mocks/ipfs-only-hash.js'
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
 };

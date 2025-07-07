@@ -67,5 +67,8 @@ declare global {
   }
 }
 
+// Import File mock
+import './mocks/file';
+
 // Export to make this a module
 export {};

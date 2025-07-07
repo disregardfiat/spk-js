@@ -1,5 +1,7 @@
 import { SPKAPI, AuthHeaders } from './api';
 import { mergeConfig, SPKConfig } from './config';
+import { KeychainAdapter } from './keychain-adapter';
+import { ProtocolManager } from './protocol';
 
 /**
  * SPK Network account management
@@ -20,6 +22,8 @@ export class SPKAccount {
   public file_contracts: Record<string, any> = {};
   public spk_power: number = 0;
   public head_block: number = 0;
+  public liq_broca: number = 0;
+  public pow_broca: number = 0;
   
   // Additional properties from dlux-iov
   public gov: number = 0;
@@ -36,27 +40,32 @@ export class SPKAccount {
   public tick: number = 0.01;
   public behind: number = 0;
 
-  private keychain: any = null;
+  public keychainAdapter: KeychainAdapter | null = null;
+  private protocol: ProtocolManager;
 
   constructor(username: string, options: Partial<SPKConfig> = {}) {
     const config = mergeConfig(options);
     this.username = username;
     this.node = config.node;
     this.api = new SPKAPI(config.node, config.timeout, config.maxRetries);
+    this.protocol = new ProtocolManager(config.node);
     
     if (config.keychain) {
-      this.keychain = config.keychain;
+      this.keychainAdapter = new KeychainAdapter(config.keychain);
       this.hasKeychain = true;
     }
   }
 
   async init(): Promise<void> {
     try {
-      // Check for Hive Keychain
-      if (!this.keychain && typeof window !== 'undefined' && (window as any).hive_keychain) {
-        this.keychain = (window as any).hive_keychain;
+      // Check for Hive Keychain if no adapter was provided
+      if (!this.keychainAdapter && typeof window !== 'undefined' && (window as any).hive_keychain) {
+        this.keychainAdapter = new KeychainAdapter((window as any).hive_keychain);
         this.hasKeychain = true;
       }
+
+      // Update protocol configurations
+      await this.protocol.updateProtocols();
 
       // Load account data
       const accountData = await this.api.get(`/@${this.username}`);
@@ -84,6 +93,37 @@ export class SPKAccount {
       spk: this.spk,
       broca: brocaAmount,
     };
+  }
+
+  /**
+   * Get BROCA storage capacity in human-readable format
+   */
+  async getBrocaStorage(): Promise<string> {
+    try {
+      const brocaCredits = await this.calculateBroca();
+      const stats = await this.api.get('/stats');
+      const channelBytes = stats?.channel_bytes || 1024; // Default to 1KB per BROCA
+      
+      // BROCA credits * channel_bytes = total bytes available
+      const totalBytes = brocaCredits * channelBytes;
+      
+      // Format as human-readable size
+      if (totalBytes < 1024) {
+        return `${totalBytes}B`;
+      } else if (totalBytes < 1024 * 1024) {
+        const kb = totalBytes / 1024;
+        return `${kb.toFixed(2)}KB`;
+      } else if (totalBytes < 1024 * 1024 * 1024) {
+        const mb = totalBytes / (1024 * 1024);
+        return `${mb.toFixed(2)}MB`;
+      } else {
+        const gb = totalBytes / (1024 * 1024 * 1024);
+        return `${gb.toFixed(2)}GB`;
+      }
+    } catch (error) {
+      console.warn('Failed to calculate BROCA storage:', error);
+      return '0MB';
+    }
   }
 
   async refresh(): Promise<any> {
@@ -140,10 +180,7 @@ export class SPKAccount {
         // Update instance with all data
         Object.assign(this, data);
         
-        // Calculate pending rewards
-        const { calculateSpkReward } = await import('../wallet/calculations');
-        const stats = await this.api.get('/stats');
-        this.spk += calculateSpkReward(this, stats);
+        // Pending rewards calculation removed
         
         // Ensure granted and granting have default values
         if (!this.granted.t) this.granted.t = 0;
@@ -166,12 +203,13 @@ export class SPKAccount {
     // Default broca_refill value from dlux-iov
     const broca_refill = 144000;
     
-    return broca_calc(this.broca, broca_refill, this.spk_power, currentBlock);
+    // Use pow_broca (BROCA Power) for the calculation
+    return broca_calc(this.broca, broca_refill, this.pow_broca, currentBlock);
   }
 
   async sendLarynx(amount: number, to: string, memo = ''): Promise<any> {
-    if (!this.hasKeychain) {
-      throw new Error('Hive Keychain not available');
+    if (!this.keychainAdapter || !this.keychainAdapter.isAvailable()) {
+      throw new Error('Keychain/Signer not available');
     }
 
     if (amount > this.balance) {
@@ -184,192 +222,161 @@ export class SPKAccount {
       throw new Error('Invalid recipient account');
     }
 
-    const json = JSON.stringify({
+    const json = {
       from: this.username,
       to,
       amount,
       memo,
-    });
+    };
 
-    return new Promise((resolve, reject) => {
-      this.keychain.requestCustomJson(
-        this.username,
-        'spkcc_send',
-        'Active',
-        json,
-        `Send ${amount} LARYNX to ${to}`,
-        (response: any) => {
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
+    const customJsonId = this.protocol.getCustomJsonId('LARYNX', 'send');
+    const amountDisplay = this.protocol.formatAmount('LARYNX', amount);
+    
+    return this.keychainAdapter.broadcastCustomJson(
+      this.username,
+      customJsonId,
+      'Active',
+      json,
+      `Send ${amountDisplay} to ${to}`
+    );
   }
 
   async sendSpk(amount: number, to: string, memo = ''): Promise<any> {
-    if (!this.hasKeychain) {
-      throw new Error('Hive Keychain not available');
+    if (!this.keychainAdapter || !this.keychainAdapter.isAvailable()) {
+      throw new Error('Keychain/Signer not available');
     }
 
     if (amount > this.spk) {
       throw new Error('Insufficient balance');
     }
 
-    const json = JSON.stringify({
+    const json = {
       from: this.username,
       to,
       amount,
       memo,
-    });
+    };
 
-    return new Promise((resolve, reject) => {
-      this.keychain.requestCustomJson(
-        this.username,
-        'spkcc_spk_send',
-        'Active',
-        json,
-        `Send ${amount} SPK to ${to}`,
-        (response: any) => {
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
+    const customJsonId = this.protocol.getCustomJsonId('SPK', 'send');
+    const amountDisplay = this.protocol.formatAmount('SPK', amount);
+    
+    return this.keychainAdapter.broadcastCustomJson(
+      this.username,
+      customJsonId,
+      'Active',
+      json,
+      `Send ${amountDisplay} to ${to}`
+    );
   }
 
   async powerUp(amount: number): Promise<any> {
-    if (!this.hasKeychain) {
-      throw new Error('Hive Keychain not available');
+    if (!this.keychainAdapter || !this.keychainAdapter.isAvailable()) {
+      throw new Error('Keychain/Signer not available');
     }
 
     if (amount > this.balance) {
       throw new Error('Insufficient balance');
     }
 
-    const json = JSON.stringify({
+    const json = {
       from: this.username,
       amount,
-    });
+    };
 
-    return new Promise((resolve, reject) => {
-      this.keychain.requestCustomJson(
-        this.username,
-        'spkcc_power_up',
-        'Active',
-        json,
-        `Power up ${amount} LARYNX`,
-        (response: any) => {
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
+    const customJsonId = this.protocol.getCustomJsonId('LARYNX', 'power_up');
+    const amountDisplay = this.protocol.formatAmount('LARYNX', amount);
+    
+    return this.keychainAdapter.broadcastCustomJson(
+      this.username,
+      customJsonId,
+      'Active',
+      json,
+      `Power up ${amountDisplay}`
+    );
   }
 
   async powerDown(amount: number): Promise<any> {
-    if (!this.hasKeychain) {
-      throw new Error('Hive Keychain not available');
+    if (!this.keychainAdapter || !this.keychainAdapter.isAvailable()) {
+      throw new Error('Keychain/Signer not available');
     }
 
-    const json = JSON.stringify({
+    const json = {
       from: this.username,
       amount,
-    });
+    };
 
-    return new Promise((resolve, reject) => {
-      this.keychain.requestCustomJson(
-        this.username,
-        'spkcc_power_down',
-        'Active',
-        json,
-        `Power down ${amount} LARYNX`,
-        (response: any) => {
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            resolve(response);
-          }
-        }
-      );
-    });
+    const customJsonId = this.protocol.getCustomJsonId('LARYNX', 'power_down');
+    const amountDisplay = this.protocol.formatAmount('LARYNX', amount);
+    
+    return this.keychainAdapter.broadcastCustomJson(
+      this.username,
+      customJsonId,
+      'Active',
+      json,
+      `Power down ${amountDisplay}`
+    );
   }
 
   async registerPublicKey(): Promise<void> {
     if (this.pubKey !== 'NA') return;
 
-    if (!this.hasKeychain) {
-      throw new Error('Hive Keychain not available');
+    if (!this.keychainAdapter || !this.keychainAdapter.isAvailable()) {
+      throw new Error('Keychain/Signer not available');
     }
 
     const timestamp = Date.now().toString();
     const message = `${timestamp}:register:${this.username}`;
 
-    return new Promise((resolve, reject) => {
-      this.keychain.requestSignBuffer(
+    try {
+      const { signature, publicKey } = await this.keychainAdapter.sign(
         this.username,
         message,
-        'Posting',
-        (response: any) => {
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            const auth: AuthHeaders = {
-              account: this.username,
-              signature: response.signature,
-              timestamp,
-            };
-
-            this.api.post(
-              '/api/register',
-              {
-                account: this.username,
-                pubKey: response.publicKey,
-              },
-              auth
-            ).then(() => {
-              this.pubKey = response.publicKey;
-              resolve();
-            }).catch(reject);
-          }
-        }
+        'Posting'
       );
-    });
+
+      const auth: AuthHeaders = {
+        account: this.username,
+        signature,
+        timestamp,
+      };
+
+      await this.api.post(
+        '/api/register',
+        {
+          account: this.username,
+          pubKey: publicKey,
+        },
+        auth
+      );
+
+      this.pubKey = publicKey || 'NA';
+    } catch (error: any) {
+      throw new Error(`Failed to register public key: ${error.message}`);
+    }
   }
 
   async sign(message: string, keyType = 'Posting'): Promise<AuthHeaders> {
-    if (!this.hasKeychain) {
-      throw new Error('Hive Keychain not available');
+    if (!this.keychainAdapter || !this.keychainAdapter.isAvailable()) {
+      throw new Error('Keychain/Signer not available');
     }
 
     const timestamp = Date.now().toString();
     const fullMessage = `${timestamp}:${message}`;
 
-    return new Promise((resolve, reject) => {
-      this.keychain.requestSignBuffer(
+    try {
+      const { signature } = await this.keychainAdapter.sign(
         this.username,
         fullMessage,
-        keyType,
-        (response: any) => {
-          if (response.error) {
-            reject(new Error(response.error));
-          } else {
-            resolve({
-              account: this.username,
-              signature: response.signature,
-              timestamp,
-            });
-          }
-        }
+        keyType
       );
-    });
+
+      return {
+        account: this.username,
+        signature,
+        timestamp,
+      };
+    } catch (error: any) {
+      throw new Error(`Failed to sign message: ${error.message}`);
+    }
   }
 }

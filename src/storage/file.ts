@@ -11,13 +11,24 @@ export interface FileData {
   broca_cost?: number;
 }
 
+export interface FileMetadataItem {
+  name?: string;
+  FileIndex: number;
+  ext?: string;
+  path?: string;
+  thumbnail?: string;
+  tags?: number | number[];  // Can be array of numbers or single number
+  license?: string;
+  labels?: string;
+  autoRenew?: boolean;
+  onProgress?: (percent: number) => void;
+}
+
 export interface UploadOptions {
   duration?: number;
   autoRenew?: boolean;
-  folder?: string;
-  tags?: string[];
-  license?: string;
   encrypt?: string[];
+  metaData?: FileMetadataItem[];
   chunkSize?: number;
   onProgress?: (percent: number) => void;
 }
@@ -88,11 +99,7 @@ export class SPKFile {
       duration: options.duration || 30,
       autoRenew: options.autoRenew,
       ...encryptionMetadata,
-      metadata: {
-        folder: options.folder,
-        tags: options.tags,
-        license: options.license,
-      },
+      metadata: {},
     });
 
     // Generate thumbnail for images
@@ -402,7 +409,13 @@ export class SPKFile {
     const spkNetworkId = this.account.node.includes('spktest') ? 'spkcc_spktest' : 'spkcc_dlux';
 
     return new Promise((resolve, reject) => {
-      this.account['keychain'].requestCustomJson(
+      const keychain = (window as any).hive_keychain;
+      if (!keychain) {
+        reject(new Error('Hive Keychain not found'));
+        return;
+      }
+      
+      keychain.requestCustomJson(
         this.account.username,
         spkNetworkId,
         'Active',
