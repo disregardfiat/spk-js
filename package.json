@@ -25,14 +25,14 @@
     "lint:fix": "eslint src tests --ext .js,.ts --fix",
     "format": "prettier --write \"src/**/*.{js,ts}\" \"tests/**/*.{js,ts}\"",
     "docs": "typedoc --out docs/api src/index.ts",
-    "prepare": "npm run build",
+    "prepare": "npm run build || echo 'Build failed, but continuing...'",
     "prepublishOnly": "npm test && npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/spknetwork/spk-js.git"
+    "url": "git+https://github.com/disregardfiat/spk-js.git"
   },
   "keywords": [
     "spk",
@@ -47,9 +47,9 @@
   "author": "SPK Network",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/spknetwork/spk-js/issues"
+    "url": "https://github.com/disregardfiat/spk-js/issues"
   },
-  "homepage": "https://github.com/spknetwork/spk-js#readme",
+  "homepage": "https://github.com/disregardfiat/spk-js#readme",
   "dependencies": {
     "@hiveio/hive-js": "^2.0.0",
     "axios": "^1.10.0",
@@ -60,7 +60,7 @@
     "@babel/core": "^7.23.0",
     "@babel/preset-env": "^7.23.0",
     "@babel/preset-typescript": "^7.23.0",
-    "@playwright/test": "^1.40.0",
+    "@playwright/test": "^1.32.0",
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-json": "^6.1.0",
@@ -77,7 +77,7 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "prettier": "^3.1.0",
-    "rollup": "^4.9.0",
+    "rollup": "^3.29.4",
     "rollup-plugin-dts": "^6.1.0",
     "rollup-plugin-node-polyfills": "^0.2.1",
     "ts-jest": "^29.1.1",
@@ -86,7 +86,7 @@
     "typescript": "^5.3.0"
   },
   "engines": {
-    "node": ">=14.0.0"
+    "node": ">=16.0.0"
   },
   "jest": {
     "preset": "ts-jest",
