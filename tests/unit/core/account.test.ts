@@ -136,7 +136,7 @@ describe('SPKAccount', () => {
       const result = await account.sendLarynx(100, 'alice', 'Test transfer');
 
       expect(result.success).toBe(true);
-      expect(window.hive_keychain.requestCustomJson).toHaveBeenCalledWith(
+      expect((window as any).hive_keychain.requestCustomJson).toHaveBeenCalledWith(
         'testuser',
         'spkcc_send',
         'Active',
@@ -183,7 +183,7 @@ describe('SPKAccount', () => {
       const result = await account.powerUp(100);
 
       expect(result.success).toBe(true);
-      expect(window.hive_keychain.requestCustomJson).toHaveBeenCalledWith(
+      expect((window as any).hive_keychain.requestCustomJson).toHaveBeenCalledWith(
         'testuser',
         'spkcc_power_up',
         'Active',

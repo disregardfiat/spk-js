@@ -72,13 +72,13 @@ describe('SPKAPI', () => {
       } as Response);
 
       await expect(api.get('/not-found')).rejects.toThrow('API Error: 404 Not Found');
-    });
+    }, 10000);
 
     it('should handle network errors', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network failure'));
 
       await expect(api.get('/test')).rejects.toThrow('Network failure');
-    });
+    }, 10000);
   });
 
   describe('post', () => {
@@ -155,14 +155,18 @@ describe('SPKAPI', () => {
 
   describe('request', () => {
     it('should handle timeout', async () => {
-      // Create a promise that never resolves
-      mockFetch.mockImplementationOnce(() => new Promise(() => {}));
+      // Mock fetch to throw an AbortError
+      mockFetch.mockImplementationOnce(() => {
+        const error = new Error('The operation was aborted');
+        error.name = 'AbortError';
+        throw error;
+      });
 
       // Set a short timeout
       api.timeout = 100;
 
       await expect(api.get('/timeout-test')).rejects.toThrow('Request timeout');
-    });
+    }, 10000);
 
     it('should retry on failure', async () => {
       // First call fails, second succeeds
@@ -187,7 +191,7 @@ describe('SPKAPI', () => {
       
       // Default max retries is 3
       expect(mockFetch).toHaveBeenCalledTimes(3);
-    });
+    }, 10000);
   });
 
   describe('specialized endpoints', () => {

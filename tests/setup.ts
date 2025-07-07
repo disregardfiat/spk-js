@@ -12,6 +12,16 @@ if (!global.fetch) {
   global.fetch = jest.fn();
 }
 
+// Mock AbortController if not available
+if (!global.AbortController) {
+  global.AbortController = class AbortController {
+    signal = { aborted: false };
+    abort() {
+      this.signal.aborted = true;
+    }
+  } as any;
+}
+
 // Add custom matchers
 expect.extend({
   toBeValidCID(received: string) {

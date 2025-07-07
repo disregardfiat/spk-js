@@ -156,11 +156,6 @@ export class SPKAccount {
     }
   }
 
-  private parseBroca(): number {
-    if (!this.broca || typeof this.broca !== 'string') return 0;
-    const parts = this.broca.split(',');
-    return parseInt(parts[0]) || 0;
-  }
 
   async calculateBroca(currentBlock?: number): Promise<number> {
     if (!currentBlock) currentBlock = this.head_block;
