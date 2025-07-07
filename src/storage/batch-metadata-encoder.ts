@@ -186,9 +186,9 @@ export class BatchMetadataEncoder {
     }
     
     // Build ext.folder field
-    // For root folder (index '0'), don't add dot
-    // For any other folder (including empty index), add dot
-    const extFolder = folderIndex === '0' ? file.ext : `${file.ext}.${folderIndex}`;
+    // For empty index (first custom folder), don't add dot
+    // For any other folder (including root '0'), add dot and index
+    const extFolder = folderIndex === '' ? file.ext : `${file.ext}.${folderIndex}`;
     
     // Return comma-separated fields: name,ext.folder,thumb,metadata
     return [
@@ -291,6 +291,8 @@ export class BatchMetadataEncoder {
     
     // Build reverse folder lookup
     const indexToFolder = new Map<string, string>();
+    // Add root folder mapping
+    indexToFolder.set('0', '/');
     Object.entries(this.presetFolders).forEach(([name, index]) => {
       indexToFolder.set(index, name);
     });
@@ -327,9 +329,9 @@ export class BatchMetadataEncoder {
       const lastDot = extFolder.lastIndexOf('.');
       
       if (lastDot === -1) {
-        // No folder index, file is in root
+        // No dot means first custom folder (empty index)
         ext = extFolder;
-        folderIndex = '0';
+        folderIndex = '';
       } else {
         ext = extFolder.substring(0, lastDot);
         folderIndex = extFolder.substring(lastDot + 1);

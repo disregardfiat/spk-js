@@ -84,7 +84,7 @@ describe('Batch Metadata String Generation', () => {
       
       // Custom folders: MyProjects (empty index), Backups (A), 3/Vacation (B)
       // Files sorted by CID: QmA, QmB, QmC
-      expect(result).toBe('1|MyProjects|Backups|3/Vacation,project,zip.,,-2-1,backup,tar.A,,--3,photo,jpg.B,QmVacThumb,4--25');
+      expect(result).toBe('1|MyProjects|Backups|3/Vacation,project,zip,,-2-1,backup,tar.A,,--3,photo,jpg.B,QmVacThumb,4--25');
     });
     
     it('should produce exact string with encryption', () => {
@@ -147,7 +147,7 @@ describe('Batch Metadata String Generation', () => {
       
       // Custom folders: Software (empty index), 3/2023 (A)
       // Files sorted by CID: QmExe789, QmPhoto456, QmReport123
-      expect(result).toBe('1|Software|3/2023,installer,exe.,,8--14,vacation-photo,jpg.A,QmThumbVac,4-1-25,Q4-Report,pdf.2,,--1');
+      expect(result).toBe('1|Software|3/2023,installer,exe,,8--14,vacation-photo,jpg.A,QmThumbVac,4-1-25,Q4-Report,pdf.2,,--1');
     });
     
     it('should handle files with minimal metadata', () => {
@@ -174,7 +174,7 @@ describe('Batch Metadata String Generation', () => {
       const result = encoder.encode(files);
       
       // file1: root (no path), file2: Misc folder (9), file3: root (no path)
-      expect(result).toBe('1,file1,txt,,,file2,dat.9,,,file3,log,,');
+      expect(result).toBe('1,file1,txt.0,,,file2,dat.9,,,file3,log.0,,');
     });
     
     it('should handle maximum metadata values', () => {
@@ -195,7 +195,7 @@ describe('Batch Metadata String Generation', () => {
       
       const result = encoder.encode(files);
       
-      expect(result).toBe('1|TestFolder,maxed-out,bin.,https://very-long-url.example.com/thumbnails/1234567890/image.jpg,3=-7-0123456789');
+      expect(result).toBe('1|TestFolder,maxed-out,bin,https://very-long-url.example.com/thumbnails/1234567890/image.jpg,3=-7-0123456789');
     });
     
     it('should handle deeply nested folders', () => {
@@ -249,7 +249,7 @@ describe('Batch Metadata String Generation', () => {
       expect(result.startsWith('1|Folder0|Folder1|Folder2|Folder3|Folder4|Folder5|Folder6|Folder7|Folder8|Folder9|Folder10|Folder11|Folder12|Folder13|Folder14|Folder15|Folder16|Folder17|Folder18|Folder19,')).toBe(true);
       
       // Check first few files have correct indices
-      expect(result).toContain('file0,dat.,,--0');      // Folder0 = empty index
+      expect(result).toContain('file0,dat,,--0');      // Folder0 = empty index
       expect(result).toContain('file1,dat.A,,--1');     // Folder1 = A
       expect(result).toContain('file9,dat.J,,--9');     // Folder9 = J
       expect(result).toContain('file10,dat.K,,--10');   // Folder10 = K
@@ -357,8 +357,8 @@ describe('Batch Metadata String Generation', () => {
       
       // Both should have same folder structure
       // FolderA gets empty index (first custom), FolderB gets A
-      expect(result1).toBe('1|FolderA|FolderB,a,txt.,,,b,txt.A,,');
-      expect(result2).toBe('1|FolderB|FolderA,c,txt.,,,d,txt.A,,');
+      expect(result1).toBe('1|FolderA|FolderB,a,txt,,,b,txt.A,,');
+      expect(result2).toBe('1|FolderB|FolderA,c,txt,,,d,txt.A,,');
     });
   });
 });

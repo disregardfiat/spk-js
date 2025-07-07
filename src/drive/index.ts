@@ -6,7 +6,7 @@
  */
 
 import { SPKAccount } from '../core/account';
-import { SPKApi } from '../core/api';
+import { SPKAPI } from '../core/api';
 import { EventEmitter } from 'events';
 import { 
   MetadataInfo,
@@ -77,7 +77,7 @@ export interface DriveOptions {
 
 export class SPKDrive extends EventEmitter {
   private account: SPKAccount;
-  private api: SPKApi;
+  private api: SPKAPI;
   private contracts: Map<string, SPKContract> = new Map();
   private files: Map<string, SPKFile> = new Map();
   private folders: Map<string, SPKFolder> = new Map();
