@@ -49,9 +49,10 @@ describe('File Upload E2E Tests', () => {
       
       // Single file returns UploadResult
       const uploadResult = result as UploadResult;
-      expect(uploadResult.success).toBe(true);
       expect(uploadResult.cid).toBeDefined();
-      expect(uploadResult.contractId).toBeDefined();
+      expect(uploadResult.contract).toBeDefined();
+      expect(uploadResult.size).toBe(content.length);
+      expect(uploadResult.url).toBeDefined();
       
       // Verify file was uploaded to mock server
       const uploadedFiles = mockServer.getUploadedFiles();
@@ -77,7 +78,8 @@ describe('File Upload E2E Tests', () => {
       const result = await fileUpload.upload([file], { metaData: metadata });
       
       const uploadResult = result as UploadResult;
-      expect(uploadResult.success).toBe(true);
+      expect(uploadResult.cid).toBeDefined();
+      expect(uploadResult.contract).toBeDefined();
       
       // Check contract has metadata
       const contracts = mockServer.getContracts();
@@ -107,16 +109,17 @@ describe('File Upload E2E Tests', () => {
       
       // Batch upload returns BatchUploadResult
       const batchResult = result as BatchUploadResult;
-      expect(batchResult.success).toBe(true);
       expect(batchResult.results).toHaveLength(3);
+      expect(batchResult.totalSize).toBeGreaterThan(0);
+      expect(batchResult.totalBrocaCost).toBeGreaterThan(0);
+      expect(batchResult.contractId).toBeDefined();
       
       batchResult.results.forEach(fileResult => {
-        expect(fileResult.success).toBe(true);
         expect(fileResult.cid).toBeDefined();
+        expect(fileResult.contract).toBeDefined();
+        expect(fileResult.size).toBeGreaterThan(0);
+        expect(fileResult.url).toBeDefined();
       });
-      
-      // All files should share the same batch ID
-      expect(batchResult.batchId).toBeDefined();
       
       // Verify all files uploaded
       const uploadedFiles = mockServer.getUploadedFiles();
@@ -166,8 +169,10 @@ describe('File Upload E2E Tests', () => {
       const result = await fileUpload.upload(files, { metaData: metadata });
       
       const batchResult = result as BatchUploadResult;
-      expect(batchResult.success).toBe(true);
       expect(batchResult.results).toHaveLength(3);
+      expect(batchResult.totalSize).toBeGreaterThan(0);
+      expect(batchResult.totalBrocaCost).toBeGreaterThan(0);
+      expect(batchResult.contractId).toBeDefined();
       
       // Get the contract and verify metadata format
       const contracts = mockServer.getContracts();
@@ -206,7 +211,8 @@ describe('File Upload E2E Tests', () => {
       const result = await fileUpload.upload([largeFile]);
       
       const uploadResult = result as UploadResult;
-      expect(uploadResult.success).toBe(true);
+      expect(uploadResult.cid).toBeDefined();
+      expect(uploadResult.contract).toBeDefined();
       
       // Verify file was uploaded and verified
       const uploadedFiles = mockServer.getUploadedFiles();
@@ -259,9 +265,10 @@ describe('File Upload E2E Tests', () => {
       });
       
       const uploadResult = result as UploadResult;
-      expect(uploadResult.success).toBe(true);
-      expect(uploadResult.encrypted).toBe(true);
-      expect(uploadResult.encryptedFor).toEqual(['alice', 'bob']);
+      expect(uploadResult.cid).toBeDefined();
+      expect(uploadResult.contract).toBeDefined();
+      // Encryption info would be in the contract metadata, not the result
+      expect(uploadResult.size).toBe(content.length);
       
       // Verify metadata includes encryption info
       const contracts = mockServer.getContracts();

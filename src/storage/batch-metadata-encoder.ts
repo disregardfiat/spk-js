@@ -92,15 +92,68 @@ export class BatchMetadataEncoder {
         }
         // Handle subfolder case like "Images/2023"
         if (folderPath.startsWith(presetName + '/')) {
-          // Add this as a custom folder with preset index prefix
-          const subfolder = folderPath.substring(presetName.length);
-          const customPath = presetIndex + subfolder;
-          // Add to custom folders list and get index
-          return this.addCustomFolder(folderPath, customPath);
+          // Split the path and handle it hierarchically
+          const parts = folderPath.split('/');
+          let currentPath = '';
+          let parentIndex = presetIndex;
+          
+          for (let j = 0; j < parts.length; j++) {
+            const part = parts[j];
+            currentPath = currentPath ? currentPath + '/' + part : part;
+            
+            if (!this.folderIndices.has(currentPath)) {
+              if (j === 0) {
+                // This is the preset folder itself, already handled
+                this.folderIndices.set(currentPath, presetIndex);
+              } else {
+                // Add subfolder with parent reference
+                // If parent is a preset index, use it directly
+                // If parent is empty index, use '1'
+                const displayIndex = parentIndex === '' ? '1' : parentIndex;
+                const displayPath = displayIndex + '/' + part;
+                this.addCustomFolder(currentPath, displayPath);
+              }
+            }
+            
+            parentIndex = this.folderIndices.get(currentPath)!;
+          }
+          
+          return parentIndex;
         }
       }
       
-      // It's a custom folder, add it
+      // Handle nested custom folders
+      const parts = folderPath.split('/');
+      if (parts.length > 1) {
+        // Build up the path incrementally
+        let currentPath = '';
+        let parentIndex = '';
+        
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          currentPath = currentPath ? currentPath + '/' + part : part;
+          
+          // Check if this level already exists
+          if (!this.folderIndices.has(currentPath)) {
+            if (i === 0) {
+              // First level - just add it
+              this.addCustomFolder(currentPath);
+            } else {
+              // Subsequent levels - add with parent reference
+              const displayIndex = parentIndex === '' ? '1' : parentIndex;
+              const displayPath = displayIndex + '/' + part;
+              this.addCustomFolder(currentPath, displayPath);
+            }
+          }
+          
+          // Update parent index for next iteration
+          parentIndex = this.folderIndices.get(currentPath)!;
+        }
+        
+        return parentIndex;
+      }
+      
+      // It's a simple custom folder, add it
       folderIndex = this.addCustomFolder(folderPath);
     }
     
@@ -132,8 +185,10 @@ export class BatchMetadataEncoder {
       metaStr = `${flagStr}-${licenseStr}-${labelsStr}`;
     }
     
-    // Build ext.folder field - if folder index is empty, don't add the dot
-    const extFolder = folderIndex ? `${file.ext}.${folderIndex}` : file.ext;
+    // Build ext.folder field
+    // For root folder (index '0'), don't add dot
+    // For any other folder (including empty index), add dot
+    const extFolder = folderIndex === '0' ? file.ext : `${file.ext}.${folderIndex}`;
     
     // Return comma-separated fields: name,ext.folder,thumb,metadata
     return [
@@ -242,8 +297,14 @@ export class BatchMetadataEncoder {
     
     // Add custom folders to lookup
     customFolders.forEach((folder, i) => {
-      const index = this.customFolderChars[i];
-      indexToFolder.set(index, folder);
+      if (i === 0) {
+        // First custom folder has empty index
+        indexToFolder.set('', folder);
+      } else {
+        // Subsequent folders use A, B, C...
+        const index = this.customFolderChars[i - 1];
+        indexToFolder.set(index, folder);
+      }
     });
     
     // Parse files (groups of 4 fields)
@@ -261,10 +322,37 @@ export class BatchMetadataEncoder {
       const metaStr = fileFields[i + 3];
       
       // Parse ext.folder
+      let ext: string;
+      let folderIndex: string;
       const lastDot = extFolder.lastIndexOf('.');
-      const ext = extFolder.substring(0, lastDot);
-      const folderIndex = extFolder.substring(lastDot + 1);
-      const path = indexToFolder.get(folderIndex) || 'Misc';
+      
+      if (lastDot === -1) {
+        // No folder index, file is in root
+        ext = extFolder;
+        folderIndex = '0';
+      } else {
+        ext = extFolder.substring(0, lastDot);
+        folderIndex = extFolder.substring(lastDot + 1);
+      }
+      
+      // Get the folder path
+      let path = indexToFolder.get(folderIndex) || 'Misc';
+      
+      // Handle complex folder references like "1/Sub-Folder_2023"
+      if (path.includes('/')) {
+        const pathParts = path.split('/');
+        const parentRef = pathParts[0];
+        
+        // Replace parent reference with actual folder name
+        if (parentRef === '1') {
+          // '1' refers to the first custom folder (which has empty index)
+          const parentFolder = indexToFolder.get('') || '';
+          path = parentFolder + '/' + pathParts.slice(1).join('/');
+        } else if (indexToFolder.has(parentRef)) {
+          const parentFolder = indexToFolder.get(parentRef) || '';
+          path = parentFolder + '/' + pathParts.slice(1).join('/');
+        }
+      }
       
       // Parse metadata: flag-license-labels
       const [flagStr, license, labels] = metaStr.split('-');

@@ -1,9 +1,7 @@
-// Mock File implementation for tests
-class MockFile {
-  constructor(content, name, options = {}) {
-    this.name = name;
-    this.type = options.type || 'text/plain';
-    this.lastModified = options.lastModified || Date.now();
+// Mock Blob implementation for tests
+class MockBlob {
+  constructor(content, options = {}) {
+    this.type = options.type || '';
     
     if (Array.isArray(content)) {
       this._content = Buffer.concat(content.map(c => 
@@ -27,15 +25,18 @@ class MockFile {
   
   slice(start, end) {
     const sliced = this._content.slice(start, end);
-    return new MockFile([sliced], this.name, { type: this.type });
+    return new MockBlob([sliced], { type: this.type });
   }
   
   async text() {
     return this._content.toString();
   }
   
+  toString() {
+    return `[MockBlob (${this.size} bytes)]`;
+  }
+  
   stream() {
-    // Simple mock stream
     return {
       getReader: () => ({
         read: async () => ({ done: true, value: this._content })
@@ -44,9 +45,25 @@ class MockFile {
   }
 }
 
+// Mock File implementation for tests
+class MockFile extends MockBlob {
+  constructor(content, name, options = {}) {
+    super(content, options);
+    this.name = name;
+    this.lastModified = options.lastModified || Date.now();
+  }
+  
+  toString() {
+    // Return something that helps us debug
+    return `[MockFile ${this.name} (${this.size} bytes)]`;
+  }
+}
+
 // Override global File in test environment
 if (typeof global !== 'undefined') {
   global.File = MockFile;
+  global.Blob = MockBlob;
 }
 
 module.exports = MockFile;
+module.exports.MockBlob = MockBlob;

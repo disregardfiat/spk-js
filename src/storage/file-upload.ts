@@ -387,7 +387,14 @@ export class SPKFileUpload {
       const formData = new FormData();
       
       // Add chunk to form data
-      formData.append('chunk', chunk);
+      console.log('[SPKFileUpload] Appending chunk to FormData:', {
+        chunkType: typeof chunk,
+        chunkConstructor: chunk.constructor?.name,
+        chunkSize: (chunk as any).size || (chunk as any).length || 'unknown',
+        isFile: chunk instanceof File,
+        hasContent: !!(chunk as any)._content
+      });
+      formData.append('chunk', chunk, 'chunk.dat');
 
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable && onProgress) {
@@ -420,13 +427,11 @@ export class SPKFileUpload {
       xhr.setRequestHeader('X-Sig', contract.fosig);
       xhr.setRequestHeader('X-Account', contract.t);
       
-      // Only set Content-Range for chunked uploads
-      if (totalSize > chunk.size) {
-        xhr.setRequestHeader(
-          'Content-Range',
-          `bytes ${start}-${start + chunk.size - 1}/${totalSize}`
-        );
-      }
+      // Always set Content-Range header
+      xhr.setRequestHeader(
+        'Content-Range',
+        `bytes ${start}-${start + chunk.size - 1}/${totalSize}`
+      );
 
       xhr.send(formData);
     });

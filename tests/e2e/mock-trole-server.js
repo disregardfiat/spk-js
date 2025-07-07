@@ -37,11 +37,16 @@ class MockTroleServer {
       
       res.json({
         id: contractId,
+        i: contractId, // Contract ID (used by authorizeUpload)
         t: req.body.username,
         s: req.body.s || 1000000, // Storage size
         e: Date.now() + 30 * 24 * 60 * 60 * 1000, // 30 days
         r: 1000, // Block reference
-        api: `http://localhost:${this.port}`
+        api: `http://localhost:${this.port}`,
+        files: req.body.cid, // Files to upload
+        fosig: 'mock-signature', // File owner signature
+        df: [req.body.cid], // Array of CIDs (data files)
+        m: req.body.metadata || {} // Metadata
       });
     });
     
@@ -56,11 +61,11 @@ class MockTroleServer {
       const account = req.headers['x-account'];
       const sig = req.headers['x-sig'];
       const contract = req.headers['x-contract'];
-      const cids = req.body.files;
+      const files = req.body.files;
       const meta = req.body.meta;
       
       // Basic validation
-      if (!account || !sig || !contract || !cids || !meta) {
+      if (!account || !sig || !contract || !files) {
         return res.status(400).json({ message: 'Missing required data' });
       }
       
@@ -68,8 +73,8 @@ class MockTroleServer {
       const contractData = {
         id: contract,
         account,
-        cids: cids.split(',').filter(c => c), // Remove empty entries
-        meta,
+        cids: typeof files === 'string' ? files.split(',').filter(c => c) : [files], // Handle string or single file
+        meta: meta || {},
         sig,
         uploadedSizes: new Map()
       };
@@ -78,7 +83,8 @@ class MockTroleServer {
       
       // Return authorized CIDs
       res.status(200).json({ 
-        authorized: contractData.cids 
+        authorized: contractData.cids,
+        cid: contractData.cids[0] // Return first CID for single file uploads
       });
     });
     
@@ -91,27 +97,33 @@ class MockTroleServer {
       console.log('[Mock Trole] Upload request:', {
         contract,
         contentRange,
-        fileId
+        fileId,
+        headers: req.headers
       });
       
       // Validate headers
-      if (!contract || !contentRange || !fileId) {
+      if (!contract || !fileId) {
         return res.status(400).json({ 
           message: 'Missing required headers' 
         });
       }
       
-      // Parse content range
-      const match = contentRange.match(/bytes=(\d+)-(\d+)\/(\d+)/);
-      if (!match) {
-        return res.status(400).json({ 
-          message: 'Invalid Content-Range format' 
-        });
-      }
+      // Parse content range if provided
+      let rangeStart = 0;
+      let rangeEnd = 0;
+      let fileSize = 0;
       
-      const rangeStart = Number(match[1]);
-      const rangeEnd = Number(match[2]);
-      const fileSize = Number(match[3]);
+      if (contentRange) {
+        const match = contentRange.match(/bytes\s+(\d+)-(\d+)\/(\d+)/);
+        if (!match) {
+          return res.status(400).json({ 
+            message: 'Invalid Content-Range format' 
+          });
+        }
+        rangeStart = Number(match[1]);
+        rangeEnd = Number(match[2]);
+        fileSize = Number(match[3]);
+      }
       
       // Setup busboy for multipart parsing
       const busboy = Busboy({ headers: req.headers });
@@ -119,6 +131,7 @@ class MockTroleServer {
       
       busboy.on('file', async (name, file) => {
         console.log(`[Mock Trole] Receiving file chunk: ${fileId}, bytes ${rangeStart}-${rangeEnd}`);
+        console.log(`[Mock Trole] File stream started for: ${name}`);
         
         try {
           // Check if file exists
@@ -146,14 +159,26 @@ class MockTroleServer {
             flags: rangeStart === 0 ? 'w' : 'a'
           });
           
+          let totalBytes = 0;
+          file.on('data', (chunk) => {
+            totalBytes += chunk.length;
+            console.log(`[Mock Trole] Received ${chunk.length} bytes, total: ${totalBytes}`);
+          });
+          
+          file.on('end', () => {
+            console.log(`[Mock Trole] File stream ended, total bytes: ${totalBytes}`);
+          });
+          
           file.pipe(writeStream);
           
           writeStream.on('finish', async () => {
-            console.log(`[Mock Trole] Chunk written for ${fileId}`);
+            console.log(`[Mock Trole] Chunk written for ${fileId}, checking completion...`);
             
             // Check if file is complete
             const stats = await fs.stat(filePath);
-            if (stats.size === fileSize) {
+            
+            // If no content range, assume single chunk upload
+            if (!contentRange || stats.size === fileSize) {
               // Verify CID
               const fileBuffer = await fs.readFile(filePath);
               const calculatedCid = await IpfsOnlyHash.of(fileBuffer);
@@ -213,6 +238,10 @@ class MockTroleServer {
         res.status(500).json({ 
           message: 'Upload parsing error' 
         });
+      });
+      
+      busboy.on('finish', () => {
+        console.log('[Mock Trole] Busboy finished parsing');
       });
       
       req.pipe(busboy);

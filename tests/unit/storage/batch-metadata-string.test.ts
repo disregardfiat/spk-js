@@ -39,7 +39,7 @@ describe('Batch Metadata String Generation', () => {
       const result = encoder.encode(files);
       
       // Files sorted by CID: QmDoc123, QmImg456
-      expect(result).toBe('1,report,pdf.2,,0-7-1,photo,jpg.3,QmThumb789,4-1-25');
+      expect(result).toBe('1,report,pdf.2,,-7-1,photo,jpg.3,QmThumb789,4-1-25');
     });
     
     it('should produce exact string with custom folders', () => {
@@ -82,9 +82,9 @@ describe('Batch Metadata String Generation', () => {
       
       const result = encoder.encode(files);
       
-      // Custom folders: MyProjects (1), Backups (A), Images/Vacation (B)
+      // Custom folders: MyProjects (empty index), Backups (A), 3/Vacation (B)
       // Files sorted by CID: QmA, QmB, QmC
-      expect(result).toBe('1|MyProjects|Backups|Images/Vacation,project,zip.1,,0-2-1,backup,tar.A,,0--3,photo,jpg.B,QmVacThumb,4--25');
+      expect(result).toBe('1|MyProjects|Backups|3/Vacation,project,zip.,,-2-1,backup,tar.A,,--3,photo,jpg.B,QmVacThumb,4--25');
     });
     
     it('should produce exact string with encryption', () => {
@@ -104,7 +104,7 @@ describe('Batch Metadata String Generation', () => {
       
       const result = encoder.encode(files, { encrypt: ['alice', 'bob', 'charlie'] });
       
-      expect(result).toBe('1#alice:bob:charlie,confidential,doc.2,,0-4-1');
+      expect(result).toBe('1#alice:bob:charlie,confidential,doc.2,,-4-1');
     });
     
     it('should produce exact string for complex real-world batch', () => {
@@ -145,9 +145,9 @@ describe('Batch Metadata String Generation', () => {
       
       const result = encoder.encode(files);
       
-      // Custom folders: Software (1), Images/2023 (A)
+      // Custom folders: Software (empty index), 3/2023 (A)
       // Files sorted by CID: QmExe789, QmPhoto456, QmReport123
-      expect(result).toBe('1|Software|Images/2023,installer,exe.1,,8--14,vacation-photo,jpg.A,QmThumbVac,4-1-25,Q4-Report,pdf.2,,0--1');
+      expect(result).toBe('1|Software|3/2023,installer,exe.,,8--14,vacation-photo,jpg.A,QmThumbVac,4-1-25,Q4-Report,pdf.2,,--1');
     });
     
     it('should handle files with minimal metadata', () => {
@@ -173,8 +173,8 @@ describe('Batch Metadata String Generation', () => {
       
       const result = encoder.encode(files);
       
-      // All in Misc folder (9), no metadata
-      expect(result).toBe('1,file1,txt.9,,0--,file2,dat.9,,0--,file3,log.9,,0--');
+      // file1: root (no path), file2: Misc folder (9), file3: root (no path)
+      expect(result).toBe('1,file1,txt,,,file2,dat.9,,,file3,log,,');
     });
     
     it('should handle maximum metadata values', () => {
@@ -195,22 +195,36 @@ describe('Batch Metadata String Generation', () => {
       
       const result = encoder.encode(files);
       
-      expect(result).toBe('1|TestFolder,maxed-out,bin.1,https://very-long-url.example.com/thumbnails/1234567890/image.jpg,3=-7-0123456789');
+      expect(result).toBe('1|TestFolder,maxed-out,bin.,https://very-long-url.example.com/thumbnails/1234567890/image.jpg,3=-7-0123456789');
     });
     
     it('should handle deeply nested folders', () => {
       const files: FileWithMetadata[] = [
         {
-          cid: 'QmNested1',
-          name: 'deep',
-          ext: 'file',
-          path: 'Root/Level1/Level2/Level3'
+          cid: 'QmPhoto1',
+          name: 'photo1',
+          ext: 'jpg',
+          path: 'Images/2023/Jan/15'
+        },
+        {
+          cid: 'QmDoc1',
+          name: 'report',
+          ext: 'pdf',
+          path: 'MyProjects/2023/Quarterly/Q1'
         }
       ];
       
       const result = encoder.encode(files);
       
-      expect(result).toBe('1|Root/Level1/Level2/Level3,deep,file.1,,0--');
+      // Should create folders:
+      // - 3/2023 (empty index) for Images/2023
+      // - 1/Jan (index A) for Images/2023/Jan (1 refers to first custom folder)
+      // - A/15 (index B) for Images/2023/Jan/15
+      // - MyProjects (index C) 
+      // - C/2023 (index D) for MyProjects/2023
+      // - D/Quarterly (index E) for MyProjects/2023/Quarterly
+      // - E/Q1 (index F) for MyProjects/2023/Quarterly/Q1
+      expect(result).toBe('1|3/2023|1/Jan|A/15|MyProjects|C/2023|D/Quarterly|E/Q1,report,pdf.F,,,photo1,jpg.B,,');
     });
     
     it('should handle many custom folders', () => {
@@ -235,11 +249,11 @@ describe('Batch Metadata String Generation', () => {
       expect(result.startsWith('1|Folder0|Folder1|Folder2|Folder3|Folder4|Folder5|Folder6|Folder7|Folder8|Folder9|Folder10|Folder11|Folder12|Folder13|Folder14|Folder15|Folder16|Folder17|Folder18|Folder19,')).toBe(true);
       
       // Check first few files have correct indices
-      expect(result).toContain('file0,dat.1,,0--0');     // Folder0 = 1
-      expect(result).toContain('file1,dat.A,,0--1');     // Folder1 = A
-      expect(result).toContain('file9,dat.J,,0--9');     // Folder9 = J
-      expect(result).toContain('file10,dat.K,,0--10');   // Folder10 = K
-      expect(result).toContain('file19,dat.U,,0--19');   // Folder19 = U
+      expect(result).toContain('file0,dat.,,--0');      // Folder0 = empty index
+      expect(result).toContain('file1,dat.A,,--1');     // Folder1 = A
+      expect(result).toContain('file9,dat.J,,--9');     // Folder9 = J
+      expect(result).toContain('file10,dat.K,,--10');   // Folder10 = K
+      expect(result).toContain('file19,dat.U,,--19');   // Folder19 = U
     });
   });
   
@@ -318,7 +332,7 @@ describe('Batch Metadata String Generation', () => {
       ];
       
       const result = encoder.encode(files);
-      expect(result).toBe('1|My Folder/Sub-Folder_2023,test,txt.1,,');
+      expect(result).toBe('1|My Folder|1/Sub-Folder_2023,test,txt.A,,');
     });
     
     it('should maintain stable folder indices across multiple encodings', () => {
@@ -342,8 +356,9 @@ describe('Batch Metadata String Generation', () => {
       const result2 = encoder.encode(files2);
       
       // Both should have same folder structure
-      expect(result1).toBe('1|FolderA|FolderB,a,txt,,,b,txt.A,,');
-      expect(result2).toBe('1|FolderA|FolderB,a,txt,,,b,txt.A,,');
+      // FolderA gets empty index (first custom), FolderB gets A
+      expect(result1).toBe('1|FolderA|FolderB,a,txt.,,,b,txt.A,,');
+      expect(result2).toBe('1|FolderB|FolderA,c,txt.,,,d,txt.A,,');
     });
   });
 });

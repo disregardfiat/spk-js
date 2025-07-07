@@ -15,5 +15,6 @@ module.exports = {
     '^@storage/(.*)$': '<rootDir>/src/storage/$1',
     '^@tokens/(.*)$': '<rootDir>/src/tokens/$1',
     '^@utils/(.*)$': '<rootDir>/src/utils/$1'
-  }
+  },
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts']
 };
