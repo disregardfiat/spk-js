@@ -1,68 +1,170 @@
-name: Release
+name: Release and Publish
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
-  release:
+  build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     
     steps:
-    - uses: actions/checkout@v3
-    
-    - name: Use Node.js
-      uses: actions/setup-node@v3
+    - name: Checkout code
+      uses: actions/checkout@v4
       with:
-        node-version: 18.x
+        fetch-depth: 0  # Need full history for changelog
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
         cache: 'npm'
         registry-url: 'https://registry.npmjs.org'
     
     - name: Install dependencies
       run: npm ci
     
+    - name: Run linting
+      run: npm run lint
+    
     - name: Run tests
       run: npm test
     
-    - name: Build library
+    - name: Build all targets
       run: npm run build
     
     - name: Generate documentation
-      run: npm run docs
+      run: npm run docs || echo "Documentation generation not configured"
     
-    - name: Create Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create build artifacts
+      run: |
+        mkdir -p release-artifacts
+        
+        # Create versioned directory
+        VERSION="${{ github.ref_name }}"
+        mkdir -p "release-artifacts/spk-js-${VERSION}"
+        
+        # Copy built files
+        cp -r dist/* "release-artifacts/spk-js-${VERSION}/"
+        cp README.md LICENSE package.json "release-artifacts/spk-js-${VERSION}/"
+        
+        # Create archives
+        cd release-artifacts
+        tar -czf "spk-js-${VERSION}.tar.gz" "spk-js-${VERSION}"
+        zip -r "spk-js-${VERSION}.zip" "spk-js-${VERSION}"
+        cd ..
+        
+        # Create CDN-ready bundle
+        mkdir -p release-artifacts/cdn
+        cp dist/spk-js.min.js "release-artifacts/cdn/spk-js-${VERSION}.min.js"
+        cp dist/spk-js.min.js release-artifacts/cdn/spk-js-latest.min.js
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        VERSION="${{ github.ref_name }}"
+        echo "# SPK-JS ${VERSION}" > RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "## Installation" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### NPM" >> RELEASE_NOTES.md
+        echo '```bash' >> RELEASE_NOTES.md
+        echo "npm install @spknetwork/spk-js@${VERSION}" >> RELEASE_NOTES.md
+        echo '```' >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "### CDN" >> RELEASE_NOTES.md
+        echo '```html' >> RELEASE_NOTES.md
+        echo "<script src=\"https://unpkg.com/@spknetwork/spk-js@${VERSION}/dist/spk-js.min.js\"></script>" >> RELEASE_NOTES.md
+        echo '```' >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "## Bundle Files" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "| Format | File | Use Case |" >> RELEASE_NOTES.md
+        echo "|--------|------|----------|" >> RELEASE_NOTES.md
+        echo "| UMD | \`spk-js.umd.js\` | Browser \`<script>\` tags |" >> RELEASE_NOTES.md
+        echo "| ESM | \`spk-js.esm.js\` | ES6 imports |" >> RELEASE_NOTES.md
+        echo "| CommonJS | \`spk-js.cjs.js\` | Node.js require() |" >> RELEASE_NOTES.md
+        echo "| Minified | \`spk-js.min.js\` | Production builds |" >> RELEASE_NOTES.md
+        echo "| TypeScript | \`index.d.ts\` | Type definitions |" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "## What's Changed" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        
+        # Get commit messages since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -z "$LAST_TAG" ]; then
+          echo "Initial release" >> RELEASE_NOTES.md
+        else
+          git log ${LAST_TAG}..HEAD --pretty=format:"- %s" >> RELEASE_NOTES.md
+        fi
+        
+        echo "" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "## File Sizes" >> RELEASE_NOTES.md
+        echo "" >> RELEASE_NOTES.md
+        echo "| File | Size | Gzipped |" >> RELEASE_NOTES.md
+        echo "|------|------|---------|" >> RELEASE_NOTES.md
+        for file in dist/*.js; do
+          if [ -f "$file" ]; then
+            size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
+            gzipped=$(gzip -c "$file" | wc -c | tr -d ' ')
+            filename=$(basename "$file")
+            printf "| %-20s | %10s | %10s |\n" "$filename" "$(numfmt --to=iec-i --suffix=B $size 2>/dev/null || echo "${size}B")" "$(numfmt --to=iec-i --suffix=B $gzipped 2>/dev/null || echo "${gzipped}B")" >> RELEASE_NOTES.md
+          fi
+        done
+    
+    - name: Create GitHub Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: |
-          Changes in this Release
-          - First release
-          
-          [Full Changelog](https://github.com/${{ github.repository }}/compare/previous-tag...${{ github.ref }})
+        tag_name: ${{ github.ref_name }}
+        name: SPK-JS ${{ github.ref_name }}
+        body_path: RELEASE_NOTES.md
         draft: false
-        prerelease: false
-    
-    - name: Upload Release Assets
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/spk.min.js
-        asset_name: spk.min.js
-        asset_content_type: application/javascript
+        prerelease: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') || contains(github.ref_name, '-rc') }}
+        files: |
+          release-artifacts/*.tar.gz
+          release-artifacts/*.zip
+          release-artifacts/cdn/*
+          dist/*.js
+          dist/*.d.ts
     
     - name: Publish to NPM
+      if: ${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') }}
       run: npm publish --access public
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
     
-    - name: Deploy documentation
+    - name: Publish pre-release to NPM
+      if: ${{ contains(github.ref_name, '-beta') || contains(github.ref_name, '-alpha') }}
+      run: npm publish --access public --tag next
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    
+    - name: Update GitHub Pages documentation
+      if: ${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') }}
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./docs/api
+        publish_dir: ./docs
+        cname: spkjs.disregardfiat.com
+    
+    - name: Create release summary
+      run: |
+        echo "# Release Summary for ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Published Packages" >> $GITHUB_STEP_SUMMARY
+        echo "- NPM: [@spknetwork/spk-js@${{ github.ref_name }}](https://www.npmjs.com/package/@spknetwork/spk-js/v/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+        echo "- GitHub Release: [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        cat RELEASE_NOTES.md >> $GITHUB_STEP_SUMMARY
