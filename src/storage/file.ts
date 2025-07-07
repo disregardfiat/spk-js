@@ -172,7 +172,14 @@ export class SPKFile {
 
     if (chunks === 1) {
       // Small file, single upload
-      await this.uploadChunk(file, contract, authData, 0, fileSize, options.onProgress);
+      if (file instanceof Blob || file instanceof File) {
+        await this.uploadChunk(file, contract, authData, 0, fileSize, options.onProgress);
+      } else {
+        // Convert file-like object to Blob
+        const buffer = await file.arrayBuffer();
+        const blob = new Blob([buffer]);
+        await this.uploadChunk(blob, contract, authData, 0, fileSize, options.onProgress);
+      }
     } else {
       // Large file, chunked upload
       let uploaded = 0;
@@ -374,7 +381,7 @@ export class SPKFile {
     const sizes = fileData.map(f => f.size).join(',');
 
     // Create the direct upload transaction
-    const json = {
+    const json: any = {
       op: 'direct_upload',
       c: cids,
       s: sizes,
@@ -418,7 +425,7 @@ export class SPKFile {
                 m: options.metadata || {}
               };
               
-              for (const { file, cid } of fileData) {
+              for (const { file } of fileData) {
                 await this.uploadToIPFS(file, contractId, {}, mockContract);
               }
               

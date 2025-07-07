@@ -65,16 +65,21 @@ describe('SPKAPI', () => {
     });
 
     it('should throw error on non-ok response', async () => {
+      // Set maxRetries to 0 to avoid retries in test
+      api.maxRetries = 0;
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
         statusText: 'Not Found',
+        json: async () => ({}),
       } as Response);
 
       await expect(api.get('/not-found')).rejects.toThrow('API Error: 404 Not Found');
     }, 10000);
 
     it('should handle network errors', async () => {
+      // Set maxRetries to 0 to avoid retries in test
+      api.maxRetries = 0;
       mockFetch.mockRejectedValueOnce(new Error('Network failure'));
 
       await expect(api.get('/test')).rejects.toThrow('Network failure');
@@ -189,8 +194,8 @@ describe('SPKAPI', () => {
 
       await expect(api.get('/fail-test')).rejects.toThrow('Persistent failure');
       
-      // Default max retries is 3
-      expect(mockFetch).toHaveBeenCalledTimes(3);
+      // Initial call + 3 retries = 4 total calls
+      expect(mockFetch).toHaveBeenCalledTimes(4);
     }, 10000);
   });
 

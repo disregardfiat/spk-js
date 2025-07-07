@@ -1,3 +1,10 @@
+// Add TextDecoder and TextEncoder for Node.js environment
+if (typeof TextDecoder === 'undefined') {
+  const { TextDecoder, TextEncoder } = require('util');
+  global.TextDecoder = TextDecoder;
+  global.TextEncoder = TextEncoder;
+}
+
 // Mock browser APIs that are not available in jsdom
 global.crypto = {
   subtle: {

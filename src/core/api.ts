@@ -10,7 +10,7 @@ export interface AuthHeaders {
 export class SPKAPI {
   public node: string;
   public timeout: number;
-  private maxRetries: number;
+  public maxRetries: number;
 
   constructor(node = 'https://spktest.dlux.io', timeout = 30000, maxRetries = 3) {
     this.node = node;
