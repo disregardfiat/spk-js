@@ -12,7 +12,7 @@ jobs:
     
     strategy:
       matrix:
-        node-version: [14.x, 16.x, 18.x, 20.x]
+        node-version: [16.x, 18.x, 20.x]
     
     steps:
     - uses: actions/checkout@v3
@@ -24,7 +24,7 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm ci
+      run: npm install
     
     - name: Run linter
       run: npm run lint
@@ -47,7 +47,7 @@ jobs:
       run: |
         echo "Checking bundle sizes..."
         ls -lh dist/
-        size=$(stat -c%s dist/spk.min.js 2>/dev/null || stat -f%z dist/spk.min.js)
+        size=$(stat -c%s dist/spk-js.min.js 2>/dev/null || stat -f%z dist/spk-js.min.js)
         echo "Minified bundle size: $size bytes"
         if [ $size -gt 102400 ]; then
           echo "Warning: Bundle size exceeds 100KB"
@@ -67,7 +67,7 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm ci
+      run: npm install
     
     - name: Run integration tests
       run: npm run test:integration
@@ -89,7 +89,7 @@ jobs:
         cache: 'npm'
     
     - name: Install dependencies
-      run: npm ci
+      run: npm install
     
     - name: Install Playwright browsers
       run: npx playwright install --with-deps
