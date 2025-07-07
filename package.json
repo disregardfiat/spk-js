@@ -2,8 +2,9 @@
   "name": "@spknetwork/spk-js",
   "version": "0.1.0",
   "description": "JavaScript library for interacting with SPK Network decentralized storage",
-  "main": "dist/spk.js",
-  "module": "dist/spk.esm.js",
+  "main": "dist/spk-js.cjs.js",
+  "module": "dist/spk-js.esm.js",
+  "browser": "dist/spk-js.umd.js",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
