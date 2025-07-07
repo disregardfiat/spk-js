@@ -123,6 +123,74 @@ export default class SPK {
   }
 
   /**
+   * Calculate BROCA cost with network stats
+   * Compatible with SPK desktop API
+   */
+  async calculateBrocaCost(sizeInBytes: number, options: any = {}): Promise<{
+    cost: number;
+    baseCost: number;
+    minCost: number;
+    refundableBroca: number;
+    sizeInBytes: number;
+    sizeInKB: number;
+    sizeInMB: number;
+    brocaCapacity: number;
+    bytesPerBroca: number;
+    contractDays: number;
+  }> {
+    try {
+      // Use provided stats or fetch fresh ones
+      const stats = options.stats || await this.getNetworkStats();
+      
+      if (!stats || !stats.result) {
+        throw new Error('Invalid network stats');
+      }
+      
+      const { channel_bytes = 1024, channel_min = 100 } = stats.result;
+      
+      // Calculate base cost: 1 BROCA per channel_bytes (typically 1024 bytes)
+      const baseCost = Math.ceil(sizeInBytes / channel_bytes);
+      
+      // For contracts, there's a minimum cost
+      const minCost = options.includeContractMin ? channel_min : 0;
+      const actualCost = Math.max(baseCost, minCost);
+      
+      // Calculate how much data this BROCA can store
+      const brocaCapacity = actualCost * channel_bytes;
+      const refundableBroca = options.includeContractMin ? Math.max(0, minCost - baseCost) : 0;
+      
+      return {
+        cost: actualCost,
+        baseCost,
+        minCost,
+        refundableBroca,
+        sizeInBytes,
+        sizeInKB: sizeInBytes / 1024,
+        sizeInMB: sizeInBytes / (1024 * 1024),
+        brocaCapacity,
+        bytesPerBroca: channel_bytes,
+        contractDays: 30
+      };
+    } catch (error) {
+      console.error('Failed to calculate BROCA cost:', error);
+      // Return default calculation
+      const baseCost = Math.ceil(sizeInBytes / 1024);
+      return {
+        cost: baseCost,
+        baseCost,
+        minCost: 100,
+        refundableBroca: 0,
+        sizeInBytes,
+        sizeInKB: sizeInBytes / 1024,
+        sizeInMB: sizeInBytes / (1024 * 1024),
+        brocaCapacity: baseCost * 1024,
+        bytesPerBroca: 1024,
+        contractDays: 30
+      };
+    }
+  }
+
+  /**
    * Get file information by CID
    */
   async getFile(cid: string): Promise<any> {
@@ -223,25 +291,97 @@ export default class SPK {
   /**
    * Get storage providers
    */
-  async getStorageProviders(): Promise<any[]> {
-    const stats = await this.getNetworkStats();
-    const providers = [];
-    
-    if (stats && stats.peers) {
-      for (const [account, data] of Object.entries(stats.peers)) {
-        const peerData = data as any;
-        if (peerData.ipfs) {
-          providers.push({
-            account,
-            ipfs: peerData.ipfs,
-            bid: peerData.bid || 0.015,
-            ...peerData
-          });
+  async getStorageProviders(): Promise<any> {
+    try {
+      // Fetch from the services endpoint
+      const response = await fetch(`${this.account.node}/services/IPFS`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch storage providers');
+      }
+      
+      const data = await response.json();
+      const services: any[] = [];
+
+      // Process the services data  
+      if (data.services) {
+        for (let i = 0; i < data.services.length; i++) {
+          const serviceGroup = data.services[i];
+          for (const [id, service] of Object.entries(serviceGroup)) {
+            services.push({
+              id,
+              api: (service as any).a,
+              account: (service as any).b
+            });
+          }
         }
       }
+      
+      return { providers: data.providers || {}, services, raw: data };
+    } catch (error) {
+      console.error('Failed to get storage providers:', error);
+      throw error;
     }
+  }
+
+  /**
+   * Get healthy storage providers that can handle the required size
+   * @param requiredSize - Required storage size in bytes
+   * @returns Array of healthy providers
+   */
+  async getHealthyStorageProviders(requiredSize: number): Promise<any[]> {
+    const { services } = await this.getStorageProviders();
     
-    return providers.sort((a, b) => a.bid - b.bid);
+    // Known problematic nodes to skip
+    const skipNodes = new Set([]);
+    
+    // Check each provider's health and capacity
+    const checkPromises = services.map(async (service: any) => {
+      // Skip known problematic nodes
+      if (service.api && Array.from(skipNodes).some(badNode => service.api.includes(badNode))) {
+        return null;
+      }
+      
+      try {
+        // Set a timeout for the health check
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1000);
+        
+        const statsResponse = await fetch(`${service.api}/upload-stats`, {
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!statsResponse.ok) {
+          return null;
+        }
+        
+        const stats = await statsResponse.json();
+        
+        // Check if provider has enough space (2x required size for safety)
+        const maxStorage = BigInt(stats.StorageMax || 0);
+        const repoSize = BigInt(stats.RepoSize || 0);
+        const freeSpace = maxStorage - repoSize;
+        const requiredSpace = BigInt(requiredSize) * BigInt(2);
+        
+        if (freeSpace >= requiredSpace) {
+          return {
+            ...service,
+            stats,
+            freeSpace: Number(freeSpace),
+            healthy: true
+          };
+        }
+      } catch (error) {
+        // Provider is not healthy/reachable
+        return null;
+      }
+      
+      return null;
+    });
+    
+    const results = await Promise.all(checkPromises);
+    return results.filter(provider => provider !== null);
   }
 
   /**
@@ -250,6 +390,22 @@ export default class SPK {
   async createContract(contractData: any): Promise<any> {
     const auth = await this.account.sign(`create_contract:${Date.now()}`);
     return this.account.api.post('/api/new_contract', contractData, auth);
+  }
+
+  /**
+   * Create storage contract (compatible with SPK desktop API)
+   */
+  async createStorageContract(contractData: any, _options: any = {}): Promise<{
+    success: boolean;
+    contract?: any;
+    error?: string;
+  }> {
+    try {
+      const result = await this.createContract(contractData);
+      return { success: true, contract: result };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   }
 
   /**
