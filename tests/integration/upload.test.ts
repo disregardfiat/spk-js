@@ -16,14 +16,14 @@ describeIntegration('Upload Integration', () => {
     // Mock Hive Keychain for testing
     (global as any).window = {
       hive_keychain: {
-        requestSignBuffer: jest.fn((username, message, method, callback) => {
+        requestSignBuffer: jest.fn((_username, _message, _method, callback) => {
           // Simulate successful signing
           callback(null, {
             signature: 'test_signature_' + Date.now(),
             publicKey: 'STM8TestPublicKey'
           });
         }),
-        requestCustomJson: jest.fn((username, id, method, json, display, callback) => {
+        requestCustomJson: jest.fn((_username, _id, _method, _json, _display, callback) => {
           // Simulate successful broadcast
           callback(null, { success: true });
         })

@@ -37,6 +37,13 @@ declare global {
       toBeValidCID(): R;
     }
   }
+  
+  interface Window {
+    hive_keychain?: {
+      requestSignBuffer: Function;
+      requestCustomJson: Function;
+    };
+  }
 }
 
 // Export to make this a module

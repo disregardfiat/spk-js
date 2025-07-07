@@ -52,29 +52,6 @@ export class SPKFile {
     return Hash.of(buffer);
   }
 
-  /**
-   * Create storage contract for a file
-   */
-  async createContract(fileData: FileData): Promise<any> {
-    // Calculate BROCA cost
-    const duration = fileData.duration || 30;
-    const brocaCost = BrocaCalculator.cost(fileData.size, duration);
-    
-    // Check if user has enough BROCA
-    const availableBroca = this.account.calculateBroca();
-    if (brocaCost > availableBroca) {
-      throw new Error('Insufficient BROCA');
-    }
-
-    const contractData = {
-      ...fileData,
-      broca_cost: brocaCost,
-      account: this.account.username,
-    };
-
-    const auth = await this.account.sign(`create_contract:${fileData.cid}`);
-    return this.account.api.post('/api/fileContract', contractData, auth);
-  }
 
   /**
    * Upload a file to SPK Network

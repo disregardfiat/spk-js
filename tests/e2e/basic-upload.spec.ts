@@ -27,13 +27,13 @@ test.describe('Basic Upload Example', () => {
     // Mock Hive Keychain
     await page.evaluate(() => {
       (window as any).hive_keychain = {
-        requestSignBuffer: (username: string, message: string, method: string, callback: Function) => {
+        requestSignBuffer: (_username: string, _message: string, _method: string, callback: Function) => {
           callback(null, {
             signature: 'mock_signature',
             publicKey: 'STM8MockPublicKey'
           });
         },
-        requestCustomJson: (username: string, id: string, method: string, json: string, display: string, callback: Function) => {
+        requestCustomJson: (_username: string, _id: string, _method: string, _json: string, _display: string, callback: Function) => {
           callback(null, { success: true });
         }
       };

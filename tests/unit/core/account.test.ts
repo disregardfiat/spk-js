@@ -120,10 +120,10 @@ describe('SPKAccount', () => {
       account.hasKeychain = true;
       (global as any).window = {
         hive_keychain: {
-          requestSignBuffer: jest.fn((username, message, method, callback) => {
+          requestSignBuffer: jest.fn((_username, _message, _method, callback) => {
             callback(null, { signature: 'test_signature' });
           }),
-          requestCustomJson: jest.fn((username, id, method, json, display, callback) => {
+          requestCustomJson: jest.fn((_username, _id, _method, _json, _display, callback) => {
             callback(null, { success: true });
           })
         }
@@ -172,7 +172,7 @@ describe('SPKAccount', () => {
       account.hasKeychain = true;
       (global as any).window = {
         hive_keychain: {
-          requestCustomJson: jest.fn((username, id, method, json, display, callback) => {
+          requestCustomJson: jest.fn((_username, _id, _method, _json, _display, callback) => {
             callback(null, { success: true });
           })
         }
@@ -228,7 +228,7 @@ describe('SPKAccount', () => {
       
       (global as any).window = {
         hive_keychain: {
-          requestSignBuffer: jest.fn((username, message, method, callback) => {
+          requestSignBuffer: jest.fn((_username, _message, _method, callback) => {
             callback(null, { 
               signature: 'test_signature',
               publicKey: 'STM8TestPublicKey'
