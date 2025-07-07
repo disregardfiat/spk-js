@@ -1,5 +1,6 @@
 // Add TextDecoder and TextEncoder for Node.js environment
 if (typeof TextDecoder === 'undefined') {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { TextDecoder, TextEncoder } = require('util');
   global.TextDecoder = TextDecoder;
   global.TextEncoder = TextEncoder;
@@ -49,6 +50,7 @@ expect.extend({
 
 // Extend Jest matchers TypeScript definitions
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace jest {
     interface Matchers<R> {
       toBeValidCID(): R;
@@ -57,7 +59,9 @@ declare global {
   
   interface Window {
     hive_keychain?: {
+      // eslint-disable-next-line @typescript-eslint/ban-types
       requestSignBuffer: Function;
+      // eslint-disable-next-line @typescript-eslint/ban-types
       requestCustomJson: Function;
     };
   }

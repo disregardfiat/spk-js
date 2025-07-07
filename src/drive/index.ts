@@ -7,14 +7,10 @@
 
 import { SPKAccount } from '../core/account';
 import { SPKApi } from '../core/api';
-import { BrocaCalculator } from '../tokens/broca';
 import { EventEmitter } from 'events';
 import { 
-  FileMetadata as ParsedFileMetadata,
   MetadataInfo,
   parseMetadataString,
-  buildMetadataString,
-  isAuxiliaryFile,
   getAuxiliaryFileDescription,
   getFolderForPathIndex
 } from '../storage/metadata';

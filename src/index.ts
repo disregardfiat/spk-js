@@ -7,10 +7,20 @@ import { SPKDrive } from './drive';
 export * from './core/account';
 export * from './core/api';
 export * from './core/config';
-export * from './storage/file';
+export { 
+  UploadOptions, 
+  UploadResult, 
+  FileData 
+} from './storage/file';
 export * from './storage/metadata';
 export * from './tokens/broca';
-export * from './drive';
+export { 
+  SPKDrive,
+  SPKFile as DriveFile,
+  SPKFolder as DriveFolder,
+  SPKContract,
+  FileMetadata as DriveFileMetadata 
+} from './drive';
 
 // Re-export specific classes for easier access
 export { BrocaCalculator } from './tokens/broca';
@@ -198,7 +208,7 @@ export default class SPK {
   /**
    * Decrypt an encrypted file
    */
-  async decrypt(cid: string): Promise<Blob> {
+  async decrypt(_cid: string): Promise<Blob> {
     // This would implement decryption logic
     throw new Error('Decryption not yet implemented');
   }
@@ -219,12 +229,13 @@ export default class SPK {
     
     if (stats && stats.peers) {
       for (const [account, data] of Object.entries(stats.peers)) {
-        if (data.ipfs) {
+        const peerData = data as any;
+        if (peerData.ipfs) {
           providers.push({
             account,
-            ipfs: data.ipfs,
-            bid: data.bid || 0.015,
-            ...data
+            ipfs: peerData.ipfs,
+            bid: peerData.bid || 0.015,
+            ...peerData
           });
         }
       }

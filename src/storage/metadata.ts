@@ -84,19 +84,6 @@ export const FILE_FLAGS: Record<string, number> = {
   'executable': 8    // Bit 3 = executable file
 };
 
-/**
- * Generate the next available folder index
- */
-function generateNextFolderIndex(folderMap: Map<string, FolderInfo>): string {
-  // Find the next available custom index
-  for (const char of CUSTOM_INDICES) {
-    if (!folderMap.has(char)) {
-      return char;
-    }
-  }
-  // If all are taken, use a combination
-  return `A${folderMap.size}`;
-}
 
 /**
  * Build the full folder path
