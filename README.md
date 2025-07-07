@@ -162,7 +162,7 @@ Options:
 ### Setup
 
 ```bash
-git clone https://github.com/spknetwork/spk-js.git
+git clone https://github.com/disregardfiat/spk-js.git
 cd spk-js
 npm install
 ```
@@ -211,4 +211,4 @@ MIT License - see [LICENSE](./LICENSE) for details
 - [SPK Network](https://spknetwork.io)
 - [Documentation](https://docs.spknetwork.io)
 - [Discord](https://discord.gg/spknetwork)
-- [GitHub](https://github.com/spknetwork/spk-js)
+- [GitHub](https://github.com/disregardfiat/spk-js)

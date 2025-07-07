@@ -2,7 +2,7 @@ import SPK from '../../src/index';
 
 // Integration tests run against a test node
 const TEST_NODE = process.env.SPK_TEST_NODE || 'https://spktest.dlux.io';
-const TEST_ACCOUNT = process.env.SPK_TEST_ACCOUNT || 'spkjs-test';
+const TEST_ACCOUNT = process.env.SPK_TEST_ACCOUNT || 'spk-js-test';
 
 // Skip these tests in CI unless credentials are provided
 const describeIntegration = process.env.SPK_TEST_ACCOUNT ? describe : describe.skip;

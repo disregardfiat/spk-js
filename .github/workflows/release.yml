@@ -157,7 +157,7 @@ jobs:
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_dir: ./docs
-        cname: spkjs.disregardfiat.com
+        cname: spk-js.disregardfiat.com
     
     - name: Create release summary
       run: |
