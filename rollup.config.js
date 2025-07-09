@@ -17,7 +17,8 @@ module.exports = [
       file: 'dist/spk-js.cjs.js',
       format: 'cjs',
       sourcemap: true,
-      exports: 'named'
+      exports: 'named',
+      inlineDynamicImports: true
     },
     plugins: [
       nodeResolve({
@@ -28,7 +29,8 @@ module.exports = [
       json(),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationMap: false
       }),
       production && terser()
     ],
@@ -49,7 +51,8 @@ module.exports = [
     output: {
       file: 'dist/spk-js.esm.js',
       format: 'es',
-      sourcemap: true
+      sourcemap: true,
+      inlineDynamicImports: true
     },
     plugins: [
       nodeResolve({
@@ -60,7 +63,8 @@ module.exports = [
       json(),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationMap: false
       }),
       production && terser()
     ],
@@ -81,7 +85,8 @@ module.exports = [
       sourcemap: true,
       globals: {
         buffer: 'Buffer'
-      }
+      },
+      inlineDynamicImports: true
     },
     plugins: [
       nodeResolve({
@@ -92,7 +97,8 @@ module.exports = [
       json(),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationMap: false
       }),
       babel({
         babelHelpers: 'bundled',
@@ -116,7 +122,8 @@ module.exports = [
       name: 'SPK',
       file: 'dist/spk-js.min.js',
       format: 'iife',
-      sourcemap: true
+      sourcemap: true,
+      inlineDynamicImports: true
     },
     plugins: [
       nodeResolve({
@@ -127,7 +134,8 @@ module.exports = [
       json(),
       typescript({
         tsconfig: './tsconfig.json',
-        declaration: false
+        declaration: false,
+        declarationMap: false
       }),
       babel({
         babelHelpers: 'bundled',

@@ -66,6 +66,9 @@ export default class SPK {
       this.account.api,
       this.protocol
     );
+    
+    // Set global SPK instance for contract creator
+    (global as any).currentSPKInstance = this;
   }
 
   /**
@@ -556,3 +559,7 @@ export default class SPK {
     return [result];
   }
 }
+
+// Export the new storage provider selector and contract creator
+export { StorageProviderSelector } from './storage/provider-selector';
+export { SPKContractCreator } from './storage/contract-creator';

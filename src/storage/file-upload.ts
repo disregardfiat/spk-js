@@ -2,6 +2,7 @@ import { SPKAccount } from '../core/account';
 import { BrocaCalculator } from '../tokens/broca';
 import { SPKFileMetadata } from './file-metadata';
 import { FileMetadataItem, UploadOptions, UploadResult } from './file';
+import { SPKContractCreator } from './contract-creator';
 import Hash from 'ipfs-only-hash';
 import { Buffer } from 'buffer';
 
@@ -25,9 +26,11 @@ export interface FileWithMetadata {
 export class SPKFileUpload {
   private account: SPKAccount;
   private uploadController?: AbortController;
+  private contractCreator?: SPKContractCreator;
 
   constructor(account: SPKAccount) {
     this.account = account;
+    // Contract creator will be initialized when needed with proper SPK instance
   }
 
   /**
@@ -273,21 +276,40 @@ export class SPKFileUpload {
   }
 
   /**
-   * Create storage contract
+   * Create storage contract using blockchain transaction
    */
   private async createContract(contractData: any): Promise<any> {
-    const auth = await this.account.sign(`create_contract:${Date.now()}`);
-    
-    const response = await this.account.api.post('/api/new_contract', {
-      ...contractData,
-      username: this.account.username
-    }, auth);
-    
-    if (!response || response.error) {
-      throw new Error(response?.error || 'Failed to create contract');
+    // Initialize contract creator if not already done
+    if (!this.contractCreator) {
+      // Get the SPK instance from the global context
+      const spkInstance = (global as any).currentSPKInstance || this.account;
+      this.contractCreator = new SPKContractCreator(spkInstance, this.account.node);
     }
     
-    return response;
+    // Use the contract creator to create a blockchain-based contract
+    const result = await this.contractCreator.createStorageContract(
+      contractData.size,
+      {
+        duration: contractData.duration,
+        beneficiary: contractData.beneficiary,
+        metadata: contractData.metadata
+      }
+    );
+    
+    // Transform result to match expected contract format
+    return {
+      i: result.contractId,
+      t: this.account.username,
+      n: result.provider.nodeId,
+      api: result.provider.api,
+      df: [contractData.cid],
+      m: contractData.metadata || {},
+      a: contractData.autoRenew || false,
+      r: 0, // Renewals
+      u: Date.now(), // Updated timestamp
+      // Generate fosig (file owner signature) for upload authorization
+      fosig: await this.account.sign(`${result.contractId}:${contractData.cid}:${Date.now()}`)
+    };
   }
 
   /**

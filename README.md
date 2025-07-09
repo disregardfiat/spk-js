@@ -71,6 +71,12 @@ const customSigner = {
     // operations is an array of Hive transaction operations
     // callback({ result: { id: 'txid' } }) on success
     // callback({ error: 'error message' }) on failure
+  },
+  requestEncryptMemo: (account, recipient, memo, callback) => {
+    // Your memo encryption implementation
+    // recipient can be a string (single) or array (multi-sig)
+    // callback({ success: true, result: '#encrypted-memo' }) on success
+    // callback({ success: false, error: 'error message' }) on failure
   }
 };
 
@@ -84,6 +90,8 @@ const spk = new SPK('username', {
 For synchronous implementations, you can also provide:
 - `requestSignatureSynchronous(account, challenge, keyType)` - Returns `{ signature, publicKey }` or throws
 - `requestBroadcastSynchronous(account, operations, keyType)` - Returns `{ result: { id } }` or throws
+- `encryptMemoSync(privateKey, recipientPublicKey, message)` - Returns encrypted memo string starting with '#'
+- `decryptMemoSync(privateKey, encryptedMemo)` - Returns decrypted message
 
 ### File Upload
 
@@ -164,15 +172,18 @@ const result = await spk.upload(file, {
 
 // The file is encrypted with a random AES key
 // The AES key is wrapped for each recipient using their Hive memo key
-// Only specified recipients can decrypt the file
+// The signer account is automatically included as a recipient
+// Only specified recipients (plus the signer) can decrypt the file
 ```
 
 #### How It Works
 
-1. **AES Key Generation**: A random 256-bit AES key is generated for each file
-2. **File Encryption**: The file is encrypted using AES-256-GCM
-3. **Key Wrapping**: The AES key is encrypted for each recipient using their Hive memo key
-4. **Upload**: The encrypted file and wrapped keys are uploaded to IPFS
+1. **AES Key Generation**: A random 256-bit AES key is generated for each batch of files
+2. **File Encryption**: All files in the batch are encrypted using the same AES-256-GCM key
+3. **Auto-Signer Inclusion**: The signer account is automatically added to recipients (no need to track keys)
+4. **Key Wrapping**: The AES key is encrypted for each recipient using their Hive memo key
+5. **Multi-Sig Support**: When available, uses Hive Keychain multi-sig to encrypt for all recipients at once
+6. **Upload**: The encrypted files and wrapped keys are uploaded to IPFS
 
 #### Manual Encryption (Advanced)
 
@@ -198,17 +209,39 @@ const wrappedKeys = await encryption.wrapKeyForRecipients(aesKey, recipients);
 
 #### Wallet Integration
 
+SPK-JS integrates with Hive Keychain for memo encryption:
+
 ```javascript
 import { walletEncryption } from '@spknetwork/spk-js';
 
 // Check if Hive Keychain is available
 if (walletEncryption.isKeychainAvailable()) {
-  // Use Keychain for encryption
+  // Single recipient encryption
   const encrypted = await walletEncryption.encryptMemoKeychain(
     'sender',
     'recipient',
     'aes-key-data'
   );
+  
+  // Multi-signature encryption (encrypt for multiple recipients at once)
+  const encryptedKeys = await walletEncryption.encryptMemoKeychainMultiSig(
+    'sender',
+    ['alice', 'bob', 'charlie'], // Array of recipients
+    'aes-key-data'
+  );
+  // Returns: [
+  //   { account: 'alice', encryptedKey: '#encrypted-for-alice' },
+  //   { account: 'bob', encryptedKey: '#encrypted-for-bob' },
+  //   { account: 'charlie', encryptedKey: '#encrypted-for-charlie' }
+  // ]
+  
+  // Batch encryption with automatic fallback
+  const results = await walletEncryption.encryptForMultipleRecipients(
+    'sender',
+    ['alice', 'bob', 'charlie'],
+    'aes-key-data'
+  );
+  // Tries multi-sig first, falls back to individual encryption if needed
 } else {
   // Use custom wallet with synchronous encryption
   const encrypted = walletEncryption.encryptMemoSync(
@@ -216,7 +249,43 @@ if (walletEncryption.isKeychainAvailable()) {
     recipientPublicKey,
     'aes-key-data'
   );
+  
+  // Multi-recipient with custom wallet
+  const recipients = [
+    { account: 'alice', publicKey: 'STM8PublicKey1...' },
+    { account: 'bob', publicKey: 'STM8PublicKey2...' }
+  ];
+  const encryptedKeys = walletEncryption.encryptMemoSyncMultiSig(
+    privateKey,
+    recipients,
+    'aes-key-data'
+  );
 }
+```
+
+##### Hive Keychain Methods
+
+When Hive Keychain is available (`window.hive_keychain`), it provides:
+
+- `requestEncryptMemo(account, recipient, memo, callback)`
+  - `recipient`: Can be a string (single recipient) or array (multi-sig)
+  - Multi-sig response formats:
+    - Array: `['#encrypted-for-alice', '#encrypted-for-bob']`
+    - Object: `{ alice: '#encrypted-for-alice', bob: '#encrypted-for-bob' }`
+
+##### Metadata Storage
+
+Encrypted file metadata can be stored on-chain in a compact format:
+
+```javascript
+import { Encryption } from '@spknetwork/spk-js';
+
+// Generate compact metadata string
+const metadataString = Encryption.generateMetadataString(metadata);
+// Returns base64 encoded string with minimal keys
+
+// Parse metadata string back to object
+const metadata = Encryption.parseMetadataString(metadataString);
 ```
 
 ## Virtual File System
