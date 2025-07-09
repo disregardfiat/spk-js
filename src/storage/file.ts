@@ -26,12 +26,15 @@ export interface FileMetadataItem {
 }
 
 export interface UploadOptions {
-  duration?: number;
   autoRenew?: boolean;
   encrypt?: string[];
   metaData?: FileMetadataItem[];
   chunkSize?: number;
   onProgress?: (percent: number) => void;
+  beneficiary?: {
+    account: string;
+    weight: number; // 0-1 (0-100%)
+  };
 }
 
 export interface UploadResult {
@@ -101,7 +104,6 @@ export class SPKFile {
     const contract = await this.createContract({
       cid,
       size: uploadFile.size,
-      duration: options.duration || 30,
       autoRenew: options.autoRenew,
       ...encryptionMetadata,
       metadata: {},
@@ -354,7 +356,7 @@ export class SPKFile {
    * Direct upload method - uploads files directly to IPFS without broker verification
    * This creates a completed storage contract immediately upon upload
    */
-  async directUpload(files: (File | { name: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> })[], options: { duration?: number; metadata?: any } = {}): Promise<any> {
+  async directUpload(files: (File | { name: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> })[], options: { metadata?: any } = {}): Promise<any> {
     if (!files || files.length === 0) {
       throw new Error('No files provided');
     }
@@ -379,9 +381,8 @@ export class SPKFile {
       totalSize += file.size;
     }
 
-    // Calculate BROCA cost
-    const duration = options.duration || 30;
-    const brocaCost = BrocaCalculator.cost(totalSize, duration);
+    // Calculate BROCA cost (all uploads are 30 days)
+    const brocaCost = BrocaCalculator.cost(totalSize, 30);
     
     // Check if user has enough BROCA
     const availableBroca = await this.account.calculateBroca();

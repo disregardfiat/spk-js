@@ -41,7 +41,7 @@ export class WalletEncryption {
         return;
       }
 
-      window.hive_keychain.requestEncryptMemo(
+      window.hive_keychain!.requestEncryptMemo(
         account,
         recipient,
         memo,
@@ -71,37 +71,27 @@ export class WalletEncryption {
         return;
       }
 
-      // Hive Keychain multi-sig format expects recipients as array
-      window.hive_keychain.requestEncryptMemo(
+      if (recipients.length === 0) {
+        resolve([]);
+        return;
+      }
+
+      // Try multi-sig encryption first (passing array of recipients)
+      window.hive_keychain!.requestEncryptMemo(
         account,
-        recipients,
+        recipients, // Pass array for multi-sig
         memo,
         (response: any) => {
-          if (response.success) {
-            // Response should contain encrypted memos for each recipient
-            const results = [];
-            if (Array.isArray(response.result)) {
-              // Multi-sig response format
-              for (let i = 0; i < recipients.length; i++) {
-                results.push({
-                  account: recipients[i],
-                  encryptedKey: response.result[i]
-                });
-              }
-            } else if (typeof response.result === 'object') {
-              // Alternative format: object with recipient keys
-              for (const recipient of recipients) {
-                if (response.result[recipient]) {
-                  results.push({
-                    account: recipient,
-                    encryptedKey: response.result[recipient]
-                  });
-                }
-              }
-            }
+          if (response.success && Array.isArray(response.result)) {
+            // Multi-sig succeeded, map results
+            const results = recipients.map((recipient, index) => ({
+              account: recipient,
+              encryptedKey: response.result[index]
+            }));
             resolve(results);
           } else {
-            reject(new Error(`Keychain multi-sig encryption failed: ${response.error || 'Unknown error'}`));
+            // Multi-sig failed or not supported
+            reject(new Error(response.error || 'Multi-sig encryption not supported'));
           }
         }
       );
@@ -144,6 +134,7 @@ export class WalletEncryption {
         return await this.encryptMemoKeychainMultiSig(account, recipients, message);
       } catch (error) {
         console.warn('Multi-sig encryption failed, falling back to individual encryption:', error);
+        // Fall through to individual encryption below
       }
     }
     

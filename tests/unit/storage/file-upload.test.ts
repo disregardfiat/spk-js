@@ -1,4 +1,5 @@
 import { SPKFileUpload, BatchUploadResult } from '../../../src/storage/file-upload';
+import { UploadResult } from '../../../src/storage/file';
 import { SPKAccount } from '../../../src/core/account';
 import Hash from 'ipfs-only-hash';
 
@@ -10,6 +11,15 @@ jest.mock('../../../src/tokens/broca', () => ({
   }
 }));
 jest.mock('ipfs-only-hash');
+const mockCreateStorageContract = jest.fn();
+const mockGetContractDetails = jest.fn();
+
+jest.mock('../../../src/storage/contract-creator', () => ({
+  SPKContractCreator: jest.fn().mockImplementation(() => ({
+    createStorageContract: mockCreateStorageContract,
+    getContractDetails: mockGetContractDetails
+  }))
+}));
 
 // Mock fetch
 global.fetch = jest.fn();
@@ -37,6 +47,31 @@ describe('SPKFileUpload', () => {
     // Reset mocks
     jest.clearAllMocks();
     
+    // Setup mock return values
+    mockCreateStorageContract.mockResolvedValue({
+      success: true,
+      contractId: 'contract-123',
+      transactionId: 'tx-123',
+      provider: {
+        nodeId: 'node1',
+        api: 'https://ipfs.dlux.io'
+      },
+      brocaCost: 100,
+      size: 100
+    });
+    
+    mockGetContractDetails.mockResolvedValue({
+      i: 'contract-123',
+      t: 'testuser',
+      b: 'node1',
+      api: 'https://ipfs.dlux.io',
+      a: 100000,
+      u: 0,
+      c: 1,
+      e: 1000000,
+      r: 1
+    });
+    
     // Reset XMLHttpRequest mock
     mockXHR.addEventListener.mockImplementation((event, callback) => {
       if (event === 'load') {
@@ -49,7 +84,7 @@ describe('SPKFileUpload', () => {
     mockAccount = {
       username: 'testuser',
       registerPublicKey: jest.fn().mockResolvedValue(undefined),
-      sign: jest.fn().mockResolvedValue({ signature: 'mock-sig' }),
+      sign: jest.fn().mockResolvedValue('mock-sig'),
       calculateBroca: jest.fn().mockResolvedValue(1000),
       api: {
         post: jest.fn().mockResolvedValue({ 
@@ -72,6 +107,9 @@ describe('SPKFileUpload', () => {
     } as any;
     
     fileUpload = new SPKFileUpload(mockAccount);
+    
+    // Mock the hashFile method directly
+    fileUpload['hashFile'] = jest.fn().mockResolvedValue('QmTestHash123');
     
     // Mock Hash.of
     (Hash.of as jest.Mock).mockResolvedValue('QmTestHash123');
@@ -96,15 +134,8 @@ describe('SPKFileUpload', () => {
       expect(result).toHaveProperty('cid', 'QmTestHash123');
       expect(result).toHaveProperty('url', 'https://ipfs.dlux.io/ipfs/QmTestHash123');
       expect(mockAccount.registerPublicKey).toHaveBeenCalled();
-      expect(mockAccount.api.post).toHaveBeenCalledWith(
-        '/api/new_contract',
-        expect.objectContaining({
-          cid: 'QmTestHash123',
-          size: file.size,
-          duration: 30
-        }),
-        expect.any(Object)
-      );
+      // Contract creation now happens locally, no API call
+      expect(mockAccount.sign).toHaveBeenCalled();
     });
 
     it('should upload single file with metadata', async () => {
@@ -118,22 +149,19 @@ describe('SPKFileUpload', () => {
         license: '7'
       };
       
-      const result = await fileUpload.upload(file, { metaData: [metadata] });
+      const result = await fileUpload.upload(file, { metaData: [metadata] }) as UploadResult;
       
       expect(result).toHaveProperty('cid');
-      expect(mockAccount.api.post).toHaveBeenCalledWith(
-        '/api/new_contract',
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            name: 'vacation-photo',
-            ext: 'jpg',
-            flag: expect.any(String), // Base64 encoded tags
-            labels: '125',
-            license: '7'
-          })
-        }),
-        expect.any(Object)
-      );
+      // Contract creation now happens locally
+      expect(mockAccount.sign).toHaveBeenCalled();
+      expect(result).toHaveProperty('contract');
+      expect(result.contract.metadata).toMatchObject({
+        name: 'vacation-photo',
+        ext: 'jpg',
+        flag: expect.any(String), // Base64 encoded tags
+        labels: '125',
+        license: '7'
+      });
     });
 
     it('should handle batch upload', async () => {
@@ -147,7 +175,7 @@ describe('SPKFileUpload', () => {
       expect(result.results).toHaveLength(2);
       expect(result.totalSize).toBe(files[0].size + files[1].size);
       expect(result.totalBrocaCost).toBeGreaterThan(0);
-      expect(result.contractId).toMatch(/testuser_\d+_/);
+      expect(result.contractId).toBe('contract-123');
     });
 
     it('should validate metadata FileIndex', async () => {
@@ -176,33 +204,24 @@ describe('SPKFileUpload', () => {
     it('should handle encryption', async () => {
       const file = new File(['secret'], 'secret.txt');
       
-      await fileUpload.upload(file, { encrypt: ['alice', 'bob'] });
+      const result = await fileUpload.upload(file, { encrypt: ['alice', 'bob'] }) as UploadResult;
       
-      expect(mockAccount.api.post).toHaveBeenCalledWith(
-        '/api/new_contract',
-        expect.objectContaining({
-          encrypted: true,
-          recipients: ['alice', 'bob']
-        }),
-        expect.any(Object)
-      );
+      // Contract creation now happens locally
+      expect(mockAccount.sign).toHaveBeenCalled();
+      expect(result).toHaveProperty('contract');
+      expect(result.contract.encrypted).toBe(true);
+      expect(result.contract.recipients).toEqual(['alice', 'bob']);
     });
 
     it('should auto-generate thumbnail for images', async () => {
       const file = new File(['image data'], 'photo.jpg', { type: 'image/jpeg' });
       
-      await fileUpload.upload(file);
+      const result = await fileUpload.upload(file) as UploadResult;
       
-      // Thumbnail generation is mocked to return null for now
-      expect(mockAccount.api.post).toHaveBeenCalledWith(
-        '/api/new_contract',
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            thumb: undefined
-          })
-        }),
-        expect.any(Object)
-      );
+      // Contract creation now happens locally
+      expect(mockAccount.sign).toHaveBeenCalled();
+      expect(result).toHaveProperty('contract');
+      expect(result.contract.metadata.thumb).toBeUndefined();
     });
 
     it('should use custom thumbnail if provided', async () => {
@@ -212,17 +231,12 @@ describe('SPKFileUpload', () => {
         thumbnail: 'QmCustomThumb'
       };
       
-      await fileUpload.upload(file, { metaData: [metadata] });
+      const result = await fileUpload.upload(file, { metaData: [metadata] }) as UploadResult;
       
-      expect(mockAccount.api.post).toHaveBeenCalledWith(
-        '/api/new_contract',
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            thumb: 'QmCustomThumb'
-          })
-        }),
-        expect.any(Object)
-      );
+      // Contract creation now happens locally
+      expect(mockAccount.sign).toHaveBeenCalled();
+      expect(result).toHaveProperty('contract');
+      expect(result.contract.metadata.thumb).toBe('QmCustomThumb');
     });
 
     it('should handle upload progress', async () => {
@@ -250,7 +264,8 @@ describe('SPKFileUpload', () => {
       const result = await fileUpload.upload(files) as BatchUploadResult;
       
       expect(result.results).toHaveLength(3);
-      expect(mockAccount.api.post).toHaveBeenCalledTimes(3);
+      // Batch uploads now create one contract with one batch authorization signature
+      expect(mockAccount.sign).toHaveBeenCalledTimes(1);
       
       result.results.forEach((fileResult, index) => {
         expect(fileResult.cid).toBe('QmTestHash123');
@@ -271,33 +286,25 @@ describe('SPKFileUpload', () => {
         { FileIndex: 2, name: 'tutorial-video', labels: '15' }
       ];
       
-      await fileUpload.upload(files, { metaData });
+      const result = await fileUpload.upload(files, { metaData }) as BatchUploadResult;
       
-      // First file should have metadata
-      expect(mockAccount.api.post).toHaveBeenNthCalledWith(
-        1,
-        '/api/new_contract',
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            name: 'important-doc',
-            flag: expect.any(String),
-            license: '1'
-          })
-        }),
-        expect.any(Object)
-      );
+      // Batch uploads now create one contract with one batch authorization signature
+      expect(mockAccount.sign).toHaveBeenCalledTimes(1);
       
-      // Third file should have metadata
-      expect(mockAccount.api.post).toHaveBeenNthCalledWith(
-        3,
-        '/api/new_contract',
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            labels: '15'
-          })
-        }),
-        expect.any(Object)
-      );
+      // Batch metadata is stored in contract.metadata array
+      expect(result.results[0].contract.metadata).toBeInstanceOf(Array);
+      expect(result.results[0].contract.metadata[0]).toMatchObject({
+        cid: 'QmTestHash123',
+        name: 'important-doc',
+        flag: expect.any(String),
+        license: '1'
+      });
+      
+      // Third file metadata
+      expect(result.results[0].contract.metadata[2]).toMatchObject({
+        cid: 'QmTestHash123',
+        labels: '15'
+      });
     });
 
     it('should handle individual file progress', async () => {
@@ -330,31 +337,17 @@ describe('SPKFileUpload', () => {
         { FileIndex: 1, autoRenew: false } // Override for second file
       ];
       
-      await fileUpload.upload(files, { autoRenew: true, metaData });
+      const result = await fileUpload.upload(files, { autoRenew: true, metaData }) as BatchUploadResult;
       
-      // First file should have global autoRenew
-      expect(mockAccount.api.post).toHaveBeenNthCalledWith(
-        1,
-        '/api/new_contract',
-        expect.objectContaining({ autoRenew: true }),
-        expect.any(Object)
-      );
+      // Batch uploads now create one contract with one batch authorization signature
+      expect(mockAccount.sign).toHaveBeenCalledTimes(1);
       
-      // Second file should have overridden autoRenew
-      expect(mockAccount.api.post).toHaveBeenNthCalledWith(
-        2,
-        '/api/new_contract',
-        expect.objectContaining({ autoRenew: false }),
-        expect.any(Object)
-      );
+      // All files share the same contract in batch uploads
+      // The contract has the global autoRenew setting
+      expect(result.results[0].contract.autoRenew).toBe(true);
       
-      // Third file should have global autoRenew
-      expect(mockAccount.api.post).toHaveBeenNthCalledWith(
-        3,
-        '/api/new_contract',
-        expect.objectContaining({ autoRenew: true }),
-        expect.any(Object)
-      );
+      // Individual file autoRenew overrides would be stored in metadata if needed
+      // but in batch uploads, the contract-level autoRenew applies to all files
     });
 
     it('should handle batch encryption', async () => {
@@ -367,15 +360,11 @@ describe('SPKFileUpload', () => {
       
       const result = await fileUpload.upload(files, { encrypt: ['alice', 'bob'] }) as BatchUploadResult;
       
-      result.results.forEach(() => {
-        expect(mockAccount.api.post).toHaveBeenCalledWith(
-          '/api/new_contract',
-          expect.objectContaining({
-            encrypted: true,
-            recipients: ['alice', 'bob']
-          }),
-          expect.any(Object)
-        );
+      // Batch uploads store encryption info in metadata array
+      expect(result.results[0].contract.metadata).toBeInstanceOf(Array);
+      result.results[0].contract.metadata.forEach((fileMeta: any) => {
+        expect(fileMeta.encrypted).toBe(true);
+        expect(fileMeta.recipients).toEqual(['alice', 'bob']);
       });
     });
   });
@@ -393,22 +382,19 @@ describe('SPKFileUpload', () => {
         license: '7'
       };
       
-      await fileUpload.upload(file, { metaData: [metadata] });
+      const result = await fileUpload.upload(file, { metaData: [metadata] }) as UploadResult;
       
-      expect(mockAccount.api.post).toHaveBeenCalledWith(
-        '/api/new_contract',
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            name: 'test-file',
-            ext: 'txt',
-            path: '/Documents/Tests',
-            flag: expect.any(String), // Base64 encoded 12 (4|8)
-            labels: '123',
-            license: '7'
-          })
-        }),
-        expect.any(Object)
-      );
+      // Contract creation happens locally
+      expect(mockAccount.sign).toHaveBeenCalled();
+      expect(result).toHaveProperty('contract');
+      expect(result.contract.metadata).toMatchObject({
+        name: 'test-file',
+        ext: 'txt',
+        path: '/Documents/Tests',
+        flag: expect.any(String), // Base64 encoded 12 (4|8)
+        labels: '123',
+        license: '7'
+      });
     });
 
     it('should handle metadata with single tag value', async () => {
@@ -418,17 +404,14 @@ describe('SPKFileUpload', () => {
         tags: 4 // Single value instead of array
       };
       
-      await fileUpload.upload(file, { metaData: [metadata] });
+      const result = await fileUpload.upload(file, { metaData: [metadata] }) as UploadResult;
       
-      expect(mockAccount.api.post).toHaveBeenCalledWith(
-        '/api/new_contract',
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            flag: expect.any(String) // Base64 encoded 4
-          })
-        }),
-        expect.any(Object)
-      );
+      // Contract creation happens locally
+      expect(mockAccount.sign).toHaveBeenCalled();
+      expect(result).toHaveProperty('contract');
+      expect(result.contract.metadata).toMatchObject({
+        flag: expect.any(String) // Base64 encoded 4
+      });
     });
   });
 

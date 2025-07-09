@@ -66,7 +66,7 @@ export class SPKContractCreator {
       const brocaAmount = await this.calculateBrocaCost(totalSize, options.duration || 30);
       
       // Check BROCA balance
-      const availableBroca = await this.spk.account.calculateBroca();
+      const availableBroca = await this.spk.calculateBroca();
       if (brocaAmount > availableBroca) {
         throw new Error(`Insufficient BROCA. Required: ${brocaAmount}, Available: ${availableBroca}`);
       }
@@ -163,8 +163,12 @@ export class SPKContractCreator {
    */
   private async broadcastTransaction(customJson: any): Promise<any> {
     // Use spk-js keychain to sign and broadcast
+    if (!this.spk.keychainAdapter) {
+      throw new Error('Keychain not available');
+    }
+    
     return new Promise((resolve, reject) => {
-      this.spk.keychain.requestBroadcast(
+      this.spk.keychainAdapter.requestBroadcast(
         this.spk.username,
         [['custom_json', customJson]],
         'posting',

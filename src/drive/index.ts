@@ -248,7 +248,7 @@ export class SPKDrive extends EventEmitter {
   /**
    * Extract folder path from metadata using the new system
    */
-  private extractFolderFromMetadata(metadata: FileMetadata, contractId: string, cid: string): string {
+  private extractFolderFromMetadata(_metadata: FileMetadata, contractId: string, cid: string): string {
     // Get the metadata info for this contract
     const metadataInfo = this.metadataInfo.get(contractId);
     if (!metadataInfo) {
@@ -267,14 +267,6 @@ export class SPKDrive extends EventEmitter {
     return folder || '';
   }
 
-  /**
-   * Convert base64 string to number for flag parsing
-   */
-  private base64ToNumber(str: string): number {
-    if (!str || str === '0') return 0;
-    // Simple implementation for flag parsing
-    return parseInt(str, 10) || 0;
-  }
 
   /**
    * Get files in a specific folder
@@ -333,7 +325,7 @@ export class SPKDrive extends EventEmitter {
     }
     
     // Find dynamic folders
-    this.virtualFS.forEach((files, path) => {
+    this.virtualFS.forEach((_files, path) => {
       if (path && path !== parentPath) {
         const parts = path.split('/');
         const parentParts = parentPath ? parentPath.split('/') : [];
@@ -520,19 +512,20 @@ export class SPKDrive extends EventEmitter {
   /**
    * Get storage statistics
    */
-  getStorageStats(): {
+  async getStorageStats(): Promise<{
     totalSize: number;
     usedSize: number;
     availableSize: number;
     fileCount: number;
     contractCount: number;
-  } {
+  }> {
     let usedSize = 0;
     this.files.forEach(file => {
       usedSize += file.s;
     });
     
-    const availableSize = this.account.calculateBroca() * 1000 * 1024 * 6;
+    const availableBroca = await this.account.calculateBroca();
+    const availableSize = availableBroca * 1000 * 1024 * 6;
     
     return {
       totalSize: availableSize,
@@ -548,8 +541,12 @@ export class SPKDrive extends EventEmitter {
    */
   async updateFileMetadata(contractId: string, cid: string, metadata: Partial<FileMetadata>): Promise<void> {
     const key = `${contractId}:${cid}`;
-    const currentMeta = this.metadata.get(key) || {};
-    const updatedMeta = { ...currentMeta, ...metadata };
+    const currentMeta = this.metadata.get(key) || {} as FileMetadata;
+    const updatedMeta = { ...currentMeta, ...metadata } as FileMetadata;
+    
+    // Ensure required fields have defaults
+    if (!updatedMeta.name) updatedMeta.name = '';
+    if (!updatedMeta.type) updatedMeta.type = '';
     
     this.metadata.set(key, updatedMeta);
     
@@ -597,7 +594,7 @@ export class SPKDrive extends EventEmitter {
     if (contract.df) {
       const sortedCIDs = Object.keys(contract.df).sort();
       sortedCIDs.forEach(cid => {
-        const meta = this.metadata.get(`${contract.i}:${cid}`) || {};
+        const meta = this.metadata.get(`${contract.i}:${cid}`) || {} as FileMetadata;
         metaString += `,${meta.name || ''},${meta.type || ''},${meta.thumb || ''},${meta.flags || '0'}-${meta.license || ''}-${meta.labels || ''}`;
       });
     }
@@ -624,15 +621,6 @@ export class SPKDrive extends EventEmitter {
     return result;
   }
 
-  private numberToBase64(num: number): string {
-    const glyphs = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=";
-    let result = "";
-    while (num > 0) {
-      result = glyphs[num % 64] + result;
-      num = Math.floor(num / 64);
-    }
-    return result || "0";
-  }
 
   private flagsDecode(flags: string): Record<string, boolean> {
     const num = this.base64ToNumber(flags);

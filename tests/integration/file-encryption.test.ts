@@ -1,19 +1,57 @@
-import { describe, it, expect, beforeEach, jest, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { SPKFile } from '../../src/storage/file';
 import { SPKAccount } from '../../src/core/account';
 import { Encryption, KeyManager } from '../../src/crypto';
 import { walletEncryption } from '../../src/wallet/encryption';
 
-// Mock fetch for API calls
-global.fetch = jest.fn();
+// Mock wallet encryption module
+jest.mock('../../src/wallet/encryption', () => ({
+  walletEncryption: {
+    encryptMemoSync: jest.fn((_privateKey: string, recipientPublicKey: string, memo: string) => {
+      return `#encrypted-${memo.substring(0, 10)}-for-${recipientPublicKey.substring(0, 10)}`;
+    }),
+    decryptMemoSync: jest.fn((_privateKey: string, _encryptedMemo: string) => {
+      // Simple mock that returns the original data
+      return 'base64-encoded-aes-key';
+    }),
+    encryptForMultipleRecipients: jest.fn(async (_account: string, recipients: string[], memo: string) => {
+      return recipients.map(recipient => ({
+        account: recipient,
+        encryptedKey: `#encrypted-${memo.substring(0, 10)}-for-${recipient}`
+      }));
+    })
+  }
+}));
 
-// Mock window.hive_keychain
-global.window = {
-  hive_keychain: {
+// Mock HiveAPI
+jest.mock('../../src/api', () => ({
+  HiveAPI: {
+    getAccounts: jest.fn().mockImplementation((accounts: unknown) => {
+      const accountArray = accounts as string[];
+      return Promise.resolve(accountArray.map(name => ({
+        name,
+        memo_key: `STM8PublicKey${name}...`
+      })));
+    })
+  }
+}));
+
+// Mock fetch for API calls
+global.fetch = jest.fn() as any;
+
+// Don't override crypto - let setup.ts handle it
+// The setup.ts file already provides proper crypto mocks
+
+// Ensure window exists and add hive_keychain if not already present
+if (typeof window === 'undefined') {
+  (global as any).window = {};
+}
+if (!(global as any).window.hive_keychain) {
+  (global as any).window.hive_keychain = {
     requestEncryptMemo: jest.fn(),
     requestCustomJson: jest.fn()
-  }
-} as any;
+  };
+}
 
 describe('File Encryption Integration', () => {
   let account: SPKAccount;
@@ -22,8 +60,54 @@ describe('File Encryption Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Ensure crypto mocks are available
+    const cryptoMock = {
+        getRandomValues: jest.fn((array: any) => {
+          for (let i = 0; i < array.length; i++) {
+            array[i] = Math.floor(Math.random() * 256);
+          }
+          return array;
+        }),
+        subtle: {
+          generateKey: jest.fn().mockImplementation(async () => ({
+            type: 'secret',
+            algorithm: { name: 'AES-GCM', length: 256 },
+            extractable: true,
+            usages: ['encrypt', 'decrypt'],
+            _id: Math.random()
+          })),
+          encrypt: jest.fn().mockImplementation(async (_algorithm: any, _key: any, data: any) => {
+            const dataBuffer = data as ArrayBuffer;
+            const encrypted = new ArrayBuffer(dataBuffer.byteLength + 16);
+            new Uint8Array(encrypted).set(new Uint8Array(dataBuffer));
+            return encrypted;
+          }),
+          decrypt: jest.fn().mockImplementation(async (_algorithm: any, _key: any, data: any) => {
+            const dataBuffer = data as ArrayBuffer;
+            const decrypted = new ArrayBuffer(dataBuffer.byteLength - 16);
+            new Uint8Array(decrypted).set(new Uint8Array(dataBuffer).slice(0, -16));
+            return decrypted;
+          }),
+          exportKey: jest.fn().mockImplementation(async () => {
+            const key = new ArrayBuffer(32);
+            new Uint8Array(key).fill(1);
+            return key;
+          }),
+          importKey: jest.fn().mockImplementation(async () => ({
+            type: 'secret',
+            algorithm: { name: 'AES-GCM', length: 256 },
+            extractable: true,
+            usages: ['encrypt', 'decrypt']
+          }))
+        }
+      };
+    
+    // Set crypto on both global and globalThis
+    (global as any).crypto = cryptoMock;
+    (globalThis as any).crypto = cryptoMock;
+    
     // Setup mock account
-    account = new SPKAccount('testuser', 'https://spktest.dlux.io');
+    account = new SPKAccount('testuser', { node: 'https://spktest.dlux.io' });
     account.hasKeychain = true;
     
     spkFile = new SPKFile(account);
@@ -32,9 +116,10 @@ describe('File Encryption Integration', () => {
     jest.spyOn(account, 'registerPublicKey').mockResolvedValue(undefined);
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-  });
+  // Don't restore all mocks as it removes our crypto setup
+  // afterEach(() => {
+  //   jest.restoreAllMocks();
+  // });
 
   describe('End-to-End Encryption Flow', () => {
     it('should encrypt a file for multiple recipients and prepare for upload', async () => {
@@ -49,8 +134,9 @@ describe('File Encryption Integration', () => {
         { name: 'testuser', memo_key: 'STM8PublicKeyTestuser...' }
       ];
       
-      global.fetch.mockImplementation((url: string) => {
-        if (url.includes('/api/accounts')) {
+      (global.fetch as jest.Mock).mockImplementation((url: unknown) => {
+        const urlStr = url as string;
+        if (urlStr.includes('/api/accounts')) {
           return Promise.resolve({
             ok: true,
             json: () => Promise.resolve(mockAccounts)
@@ -60,8 +146,8 @@ describe('File Encryption Integration', () => {
       });
       
       // Mock wallet encryption responses
-      window.hive_keychain.requestEncryptMemo.mockImplementation(
-        (account: string, recipient: string, memo: string, callback: Function) => {
+      ((global as any).window.hive_keychain.requestEncryptMemo as jest.Mock).mockImplementation(
+        (_account: any, recipient: any, memo: any, callback: any) => {
           callback({
             success: true,
             result: `#encrypted-${memo.substring(0, 10)}...-for-${recipient}`
@@ -70,7 +156,7 @@ describe('File Encryption Integration', () => {
       );
       
       // Mock contract creation
-      global.fetch.mockImplementationOnce(() => 
+      (global.fetch as jest.Mock).mockImplementationOnce(() => 
         Promise.resolve({
           ok: true,
           json: () => Promise.resolve({
@@ -85,8 +171,7 @@ describe('File Encryption Integration', () => {
       
       // Execute the upload with encryption
       const uploadOptions = {
-        encrypt: recipients,
-        duration: 30
+        encrypt: recipients
       };
       
       // This should trigger the full encryption flow
@@ -114,8 +199,8 @@ describe('File Encryption Integration', () => {
       );
       
       // Verify wallet encryption was called for each recipient
-      expect(window.hive_keychain.requestEncryptMemo).toHaveBeenCalledTimes(3);
-      expect(window.hive_keychain.requestEncryptMemo).toHaveBeenCalledWith(
+      expect((window as any).hive_keychain.requestEncryptMemo).toHaveBeenCalledTimes(3);
+      expect((window as any).hive_keychain.requestEncryptMemo).toHaveBeenCalledWith(
         'testuser',
         'alice',
         expect.any(String),
@@ -153,21 +238,22 @@ describe('File Encryption Integration', () => {
   describe('Partial Encryption Failures', () => {
     it('should handle partial encryption failures gracefully', async () => {
       const keyManager = new KeyManager();
-      const encryption = new Encryption(keyManager);
+      new Encryption(keyManager); // Instantiate to test constructor
       
       // Mock that Bob's account doesn't exist
-      const mockAccounts = [
-        { name: 'alice', memo_key: 'STM8PublicKeyAlice...' },
-        { name: 'charlie', memo_key: 'STM8PublicKeyCharlie...' }
-        // Bob is missing
-      ];
-      
-      global.fetch.mockImplementationOnce(() => 
-        Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve(mockAccounts)
-        })
-      );
+      // Override HiveAPI mock for this test
+      const { HiveAPI } = require('../../src/api');
+      HiveAPI.getAccounts.mockImplementationOnce((accounts: string[]) => {
+        // Filter out bob from the results
+        return Promise.resolve(
+          accounts
+            .filter(name => name !== 'bob')
+            .map(name => ({
+              name,
+              memo_key: `STM8PublicKey${name}...`
+            }))
+        );
+      });
       
       const recipients = ['alice', 'bob', 'charlie'];
       const fetchedKeys = await keyManager.fetchMemoKeys(recipients);

@@ -7,13 +7,11 @@ describe('SPKContractCreator', () => {
   let selectBestProviderSpy: jest.SpyInstance;
 
   beforeEach(() => {
-    // Mock SPK instance
+    // Mock SPK instance (actually an SPKAccount instance)
     mockSPK = {
       username: 'testuser',
-      account: {
-        calculateBroca: jest.fn().mockResolvedValue(1000)
-      },
-      keychain: {
+      calculateBroca: jest.fn().mockResolvedValue(1000),
+      keychainAdapter: {
         requestBroadcast: jest.fn()
       }
     };
@@ -54,7 +52,7 @@ describe('SPKContractCreator', () => {
       selectBestProviderSpy.mockResolvedValueOnce(mockProvider);
 
       // Mock broadcast success
-      mockSPK.keychain.requestBroadcast.mockImplementationOnce(
+      mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
         (_username: string, _ops: any, _key: string, callback: Function) => {
           callback({
             success: true,
@@ -83,7 +81,7 @@ describe('SPKContractCreator', () => {
       expect(result.contractId).toMatch(/testuser_\d+_[a-z0-9]+/);
 
       // Verify broadcast was called with correct params
-      const broadcastCall = mockSPK.keychain.requestBroadcast.mock.calls[0];
+      const broadcastCall = mockSPK.keychainAdapter.requestBroadcast.mock.calls[0];
       const customJson = broadcastCall[1][0][1];
       const jsonData = JSON.parse(customJson.json);
 
@@ -113,7 +111,7 @@ describe('SPKContractCreator', () => {
         stats: {}
       });
 
-      mockSPK.keychain.requestBroadcast.mockImplementationOnce(
+      mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
         (_username: string, _ops: any, _key: string, callback: Function) => {
           callback({ success: true, result: { id: 'tx123' } });
         }
@@ -126,7 +124,7 @@ describe('SPKContractCreator', () => {
         }
       });
 
-      const broadcastCall = mockSPK.keychain.requestBroadcast.mock.calls[0];
+      const broadcastCall = mockSPK.keychainAdapter.requestBroadcast.mock.calls[0];
       const jsonData = JSON.parse(broadcastCall[1][0][1].json);
 
       expect(jsonData.contract).toBe('1');
@@ -134,7 +132,7 @@ describe('SPKContractCreator', () => {
     });
 
     it('should throw error when insufficient BROCA', async () => {
-      mockSPK.account.calculateBroca.mockResolvedValueOnce(50); // Only 50 BROCA available
+      mockSPK.calculateBroca.mockResolvedValueOnce(50); // Only 50 BROCA available
 
       fetchMock.mockResolvedValueOnce({
         ok: true,
@@ -175,7 +173,7 @@ describe('SPKContractCreator', () => {
         stats: {}
       });
 
-      mockSPK.keychain.requestBroadcast.mockImplementationOnce(
+      mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
         (_username: string, _ops: any, _key: string, callback: Function) => {
           callback({ success: false, error: 'Transaction failed' });
         }
@@ -310,7 +308,7 @@ describe('SPKContractCreator', () => {
 
       // Mock both broadcasts
       let callCount = 0;
-      mockSPK.keychain.requestBroadcast.mockImplementation(
+      mockSPK.keychainAdapter.requestBroadcast.mockImplementation(
         (_username: string, _ops: any, _key: string, callback: Function) => {
           callCount++;
           callback({
@@ -334,7 +332,7 @@ describe('SPKContractCreator', () => {
       });
 
       // Verify second broadcast for direct upload
-      const secondCall = mockSPK.keychain.requestBroadcast.mock.calls[1];
+      const secondCall = mockSPK.keychainAdapter.requestBroadcast.mock.calls[1];
       const directUploadJson = JSON.parse(secondCall[1][0][1].json);
 
       expect(directUploadJson).toMatchObject({

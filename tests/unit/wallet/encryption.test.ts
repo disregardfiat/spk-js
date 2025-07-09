@@ -1,21 +1,20 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { WalletEncryption } from '../../../src/wallet/encryption';
 
-// Extend window type
-declare global {
-  interface Window {
-    hive_keychain: {
-      requestEncryptMemo: jest.Mock;
-    };
-  }
-}
 
 // Mock window.hive_keychain
 if (typeof window === 'undefined') {
   (global as any).window = {};
 }
+
+const mockRequestEncryptMemo = jest.fn();
+const mockRequestCustomJson = jest.fn();
+const mockRequestBroadcast = jest.fn();
+
 (global as any).window.hive_keychain = {
-  requestEncryptMemo: jest.fn()
+  requestEncryptMemo: mockRequestEncryptMemo,
+  requestCustomJson: mockRequestCustomJson,
+  requestBroadcast: mockRequestBroadcast
 };
 
 describe('WalletEncryption', () => {
@@ -33,7 +32,7 @@ describe('WalletEncryption', () => {
         result: '#encrypted-memo-content'
       };
       
-      window.hive_keychain!.requestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
+      mockRequestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
         callback(mockResponse);
       });
       
@@ -43,7 +42,7 @@ describe('WalletEncryption', () => {
         'test-aes-key-data'
       );
       
-      expect(window.hive_keychain!.requestEncryptMemo).toHaveBeenCalledWith(
+      expect(mockRequestEncryptMemo).toHaveBeenCalledWith(
         'alice',
         'bob',
         'test-aes-key-data',
@@ -58,7 +57,7 @@ describe('WalletEncryption', () => {
         error: 'User cancelled'
       };
       
-      window.hive_keychain!.requestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
+      mockRequestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
         callback(mockResponse);
       });
       
@@ -161,7 +160,7 @@ describe('WalletEncryption', () => {
   describe('Batch Encryption', () => {
     it('should use multi-sig encryption when available', async () => {
       // Mock multi-sig response
-      window.hive_keychain!.requestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
+      mockRequestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
         if (Array.isArray(_recipient)) {
           // Multi-sig format
           const results = _recipient.map((r: string) => `#encrypted-for-${r}`);
@@ -179,8 +178,8 @@ describe('WalletEncryption', () => {
       );
       
       // Should have called multi-sig once instead of individual calls
-      expect(window.hive_keychain!.requestEncryptMemo).toHaveBeenCalledTimes(1);
-      expect(window.hive_keychain!.requestEncryptMemo).toHaveBeenCalledWith(
+      expect(mockRequestEncryptMemo).toHaveBeenCalledTimes(1);
+      expect(mockRequestEncryptMemo).toHaveBeenCalledWith(
         'sender',
         recipients, // Array of recipients for multi-sig
         'test-aes-key',
@@ -204,7 +203,7 @@ describe('WalletEncryption', () => {
     
     it('should fall back to individual encryption if multi-sig fails', async () => {
       let callCount = 0;
-      window.hive_keychain!.requestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
+      mockRequestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
         callCount++;
         if (Array.isArray(_recipient) && callCount === 1) {
           // First call with array fails
@@ -223,7 +222,7 @@ describe('WalletEncryption', () => {
       );
       
       // Should have tried multi-sig first (call 1), then individual calls (calls 2-4)
-      expect(window.hive_keychain!.requestEncryptMemo).toHaveBeenCalledTimes(4);
+      expect(mockRequestEncryptMemo).toHaveBeenCalledTimes(4);
       
       expect(results).toHaveLength(3);
       expect(results[0]).toEqual({
@@ -241,7 +240,7 @@ describe('WalletEncryption', () => {
     });
 
     it('should continue batch encryption even if one fails', async () => {
-      window.hive_keychain!.requestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
+      mockRequestEncryptMemo.mockImplementation((_account: any, _recipient: any, _memo: any, callback: any) => {
         if (Array.isArray(_recipient)) {
           // Multi-sig fails
           callback({ success: false, error: 'Multi-sig not supported' });

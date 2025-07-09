@@ -2,6 +2,46 @@ import { SPKFileUpload } from '../../src/storage/file-upload';
 import { BatchMetadataEncoder } from '../../src/storage/batch-metadata-encoder';
 import { SPKFileMetadata } from '../../src/storage/file-metadata';
 
+// Mock provider selector
+jest.mock('../../src/storage/provider-selector', () => ({
+  StorageProviderSelector: jest.fn().mockImplementation(() => ({
+    selectBestProvider: jest.fn().mockResolvedValue({
+      nodeId: 'node1',
+      api: 'https://ipfs.dlux.io',
+      freeSpace: 1000000000
+    }),
+    formatBytes: jest.fn().mockImplementation(bytes => `${bytes} Bytes`)
+  }))
+}));
+
+// Mock contract creator
+jest.mock('../../src/storage/contract-creator', () => ({
+  SPKContractCreator: jest.fn().mockImplementation(() => ({
+    createStorageContract: jest.fn().mockResolvedValue({
+      success: true,
+      contractId: 'contract-123',
+      transactionId: 'tx-123',
+      provider: {
+        nodeId: 'node1',
+        api: 'https://ipfs.dlux.io'
+      },
+      brocaCost: 100,
+      size: 100
+    }),
+    getContractDetails: jest.fn().mockResolvedValue({
+      i: 'contract-123',
+      t: 'testuser',
+      b: 'node1',
+      api: 'https://ipfs.dlux.io',
+      a: 100000,
+      u: 0,
+      c: 1,
+      e: 1000000,
+      r: 1
+    })
+  }))
+}));
+
 describe('Batch Upload Metadata String Integration', () => {
   let fileUpload: SPKFileUpload;
   let mockAccount: any;
@@ -120,8 +160,8 @@ describe('Batch Upload Metadata String Integration', () => {
         // Ignore upload errors
       }
       
-      // Verify contracts were created with correct metadata
-      expect(mockAccount.api.post).toHaveBeenCalledTimes(2);
+      // Verify batch authorization signature was created
+      expect(mockAccount.sign).toHaveBeenCalledTimes(1);
     });
     
     it('should generate metadata string with custom folders', async () => {

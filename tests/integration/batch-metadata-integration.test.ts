@@ -1,32 +1,73 @@
-import { SPKFileUpload } from '../../src/storage/file-upload';
+import { SPKFileUpload, BatchUploadResult } from '../../src/storage/file-upload';
+
+// Mock provider selector
+jest.mock('../../src/storage/provider-selector', () => ({
+  StorageProviderSelector: jest.fn().mockImplementation(() => ({
+    selectBestProvider: jest.fn().mockResolvedValue({
+      nodeId: 'node1',
+      api: 'https://ipfs.dlux.io',
+      freeSpace: 1000000000
+    }),
+    formatBytes: jest.fn().mockImplementation(bytes => `${bytes} Bytes`)
+  }))
+}));
+
+// Mock contract creator
+const mockCreateStorageContract = jest.fn();
+const mockGetContractDetails = jest.fn();
+
+jest.mock('../../src/storage/contract-creator', () => ({
+  SPKContractCreator: jest.fn().mockImplementation(() => ({
+    createStorageContract: mockCreateStorageContract,
+    getContractDetails: mockGetContractDetails
+  }))
+}));
 
 describe('Batch Metadata Integration - Contract Creation', () => {
   let fileUpload: SPKFileUpload;
   let mockAccount: any;
-  let capturedContractData: any[] = [];
   
   beforeEach(() => {
-    capturedContractData = [];
+    jest.clearAllMocks();
+    
+    // Setup mock returns
+    mockCreateStorageContract.mockResolvedValue({
+      success: true,
+      contractId: 'contract-123',
+      transactionId: 'tx-123',
+      provider: {
+        nodeId: 'node1',
+        api: 'https://ipfs.dlux.io'
+      },
+      brocaCost: 100,
+      size: 100
+    });
+    
+    mockGetContractDetails.mockResolvedValue({
+      i: 'contract-123',
+      t: 'testuser',
+      b: 'node1',
+      api: 'https://ipfs.dlux.io',
+      a: 100000,
+      u: 0,
+      c: 1,
+      e: 1000000,
+      r: 1
+    });
     
     mockAccount = {
       username: 'testuser',
       registerPublicKey: jest.fn().mockResolvedValue(undefined),
-      sign: jest.fn().mockResolvedValue({ signature: 'mock-sig' }),
+      sign: jest.fn().mockResolvedValue('mock-sig'),
       calculateBroca: jest.fn().mockResolvedValue(10000),
       api: {
-        post: jest.fn().mockImplementation((endpoint, data) => {
-          // Capture contract creation data
-          if (endpoint === '/api/new_contract') {
-            capturedContractData.push(data);
-          }
-          return Promise.resolve({
-            id: `contract-${Date.now()}`,
-            df: ['QmTest'],
-            i: 'contract-123',
-            t: 'testuser',
-            fosig: 'mock-sig',
-            api: 'https://ipfs.dlux.io'
-          });
+        post: jest.fn().mockResolvedValue({
+          id: 'contract-123',
+          df: ['QmTest'],
+          i: 'contract-123',
+          t: 'testuser',
+          fosig: 'mock-sig',
+          api: 'https://ipfs.dlux.io'
         }),
         get: jest.fn().mockResolvedValue({ df: ['QmTest'], i: 'contract-123' })
       },
@@ -61,7 +102,7 @@ describe('Batch Metadata Integration - Contract Creation', () => {
   });
   
   describe('Batch metadata structure', () => {
-    it('should create individual contracts with proper metadata for each file', async () => {
+    it('should create a single contract with metadata array for batch uploads', async () => {
       const files = [
         new File(['content1'], 'report.pdf', { type: 'application/pdf' }),
         new File(['content2'], 'photo.jpg', { type: 'image/jpeg' }),
@@ -99,74 +140,71 @@ describe('Batch Metadata Integration - Contract Creation', () => {
         }
       ];
       
-      try {
-        await fileUpload.upload(files, { metaData });
-      } catch {
-        // Ignore upload errors
-      }
+      const result = await fileUpload.upload(files, { metaData }) as BatchUploadResult;
       
-      // Should create 3 separate contracts
-      expect(capturedContractData).toHaveLength(3);
+      // Should create only 1 contract for the batch
+      expect(mockCreateStorageContract).toHaveBeenCalledTimes(1);
       
-      // Check each contract has correct metadata
-      expect(capturedContractData[0]).toMatchObject({
+      // Should create 1 batch authorization signature
+      expect(mockAccount.sign).toHaveBeenCalledTimes(1);
+      
+      // Check the contract has metadata array
+      expect(result.results).toHaveLength(3);
+      const contract = result.results[0].contract;
+      expect(contract.metadata).toBeInstanceOf(Array);
+      expect(contract.metadata).toHaveLength(3);
+      
+      // Check each file's metadata in the array
+      expect(contract.metadata[0]).toMatchObject({
         cid: 'Qm100',
-        metadata: {
-          name: 'Q4-Financial-Report',
-          ext: 'pdf',
-          path: '/Documents/Reports',
-          labels: '1',
-          license: '4'
-          // No flag since tags = 0
-        }
+        name: 'Q4-Financial-Report',
+        ext: 'pdf',
+        labels: '1',
+        license: '4'
+        // No flag since tags = 0
       });
       
-      expect(capturedContractData[1]).toMatchObject({
+      expect(contract.metadata[1]).toMatchObject({
         cid: 'Qm101',
-        metadata: {
-          name: 'Vacation-2023',
-          ext: 'jpg',
-          path: '/Images/Trips',
-          thumb: 'QmThumb123',
-          flag: '4', // Base64 of 4
-          labels: '25',
-          license: '1'
-        }
+        name: 'Vacation-2023',
+        ext: 'jpg',
+        thumb: 'QmThumb123',
+        flag: '4', // Base64 of 4
+        labels: '25',
+        license: '1'
       });
       
-      expect(capturedContractData[2]).toMatchObject({
+      expect(contract.metadata[2]).toMatchObject({
         cid: 'Qm102',
-        metadata: {
-          name: 'Tutorial-Video',
-          ext: 'mp4',
-          path: '/Videos/Educational',
-          labels: '2',
-          license: '2'
-          // No flag since tags = 0
-        }
+        name: 'Tutorial-Video',
+        ext: 'mp4',
+        labels: '2',
+        license: '2'
+        // No flag since tags = 0
       });
     });
     
-    it('should include batchId for related files', async () => {
+    it('should use same contract for all files in batch', async () => {
       const files = [
         new File(['doc1'], 'part1.doc'),
         new File(['doc2'], 'part2.doc'),
         new File(['doc3'], 'part3.doc')
       ];
       
-      try {
-        await fileUpload.upload(files);
-      } catch {
-        // Ignore errors
-      }
+      const result = await fileUpload.upload(files) as BatchUploadResult;
       
-      // All contracts should have same batchId
-      expect(capturedContractData).toHaveLength(3);
-      const batchIds = capturedContractData.map(c => c.batchId);
-      expect(batchIds[0]).toBeDefined();
-      expect(batchIds[0]).toBe(batchIds[1]);
-      expect(batchIds[0]).toBe(batchIds[2]);
-      expect(batchIds[0]).toMatch(/testuser_\d+_/);
+      // All files should share the same contract
+      expect(result.results).toHaveLength(3);
+      const contractIds = result.results.map(r => r.contract.i);
+      expect(contractIds[0]).toBe('contract-123');
+      expect(contractIds[0]).toBe(contractIds[1]);
+      expect(contractIds[1]).toBe(contractIds[2]);
+      
+      // Should have created only one contract
+      expect(mockCreateStorageContract).toHaveBeenCalledTimes(1);
+      
+      // Contract ID format follows pattern
+      expect(result.contractId).toBe('contract-123');
     });
   });
   
@@ -226,13 +264,11 @@ describe('Batch Metadata Integration - Contract Creation', () => {
         license: '' // No license
       }];
       
-      try {
-        await fileUpload.upload(files, { metaData });
-      } catch {
-        // Ignore errors
-      }
+      const result = await fileUpload.upload(files, { metaData });
       
-      expect(capturedContractData[0].metadata).toEqual({
+      // For single file, metadata is stored directly in contract
+      expect(result).toHaveProperty('contract');
+      expect((result as any).contract.metadata).toEqual({
         name: 'suspicious-file',
         ext: 'exe',
         flag: 'C', // Base64 of 12
@@ -246,14 +282,11 @@ describe('Batch Metadata Integration - Contract Creation', () => {
         new File(['txt'], 'simple.txt')
       ];
       
-      try {
-        await fileUpload.upload(files);
-      } catch {
-        // Ignore errors
-      }
+      const result = await fileUpload.upload(files);
       
       // Should have minimal metadata
-      expect(capturedContractData[0].metadata).toEqual({});
+      expect(result).toHaveProperty('contract');
+      expect((result as any).contract.metadata).toEqual({});
     });
   });
 });
