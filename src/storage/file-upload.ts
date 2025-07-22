@@ -231,18 +231,18 @@ export class SPKFileUpload {
     // Set batch contract properties
     batchContract.autoRenew = options.autoRenew;
     
-    // Create batch authorization signature matching dlux-iov format
-    // Format: username:contractId,cid1,cid2,cid3
-    // Note: account.sign() will add its own timestamp
-    const batchMessage = `${this.account.username}:${batchContract.i}${batchContract.files}`;
-    const batchFosig = await this.account.sign(batchMessage, 'Posting');
-    
-    // Set up batch contract with all CIDs and signature
-    batchContract.df = cids;
-    batchContract.fosig = batchFosig;
     // Set files as comma-separated string starting with comma (dlux-iov format)
     batchContract.files = ',' + cids.join(',');
     batchContract.t = this.account.username; // Add account username for authorization
+    
+    // Create batch authorization signature matching dlux-iov format
+    // Format: username:contractId,cid1,cid2,cid3
+    const batchMessage = `${this.account.username}:${batchContract.i}${batchContract.files}`;
+    const authHeaders = await this.account.sign(batchMessage, 'Posting');
+    
+    // Set up batch contract with all CIDs and signature
+    batchContract.df = cids;
+    batchContract.fosig = authHeaders.signature;
     
     // Get batch authorization
     await this.authorizeBatchUpload(batchContract, cids, sizes);
@@ -291,7 +291,7 @@ export class SPKFileUpload {
       await this.uploadToIPFS(uploadFile, batchContract.i, metadata?.onProgress || options.onProgress, {
         ...batchContract,
         cid: cid,
-        fosig: batchFosig,  // Use batch signature
+        fosig: batchContract.fosig,  // Use batch signature
         df: [cid]
       });
 
@@ -847,18 +847,18 @@ export class SPKFileUpload {
     // Set batch contract properties
     batchContract.autoRenew = options.autoRenew;
     
-    // Create batch authorization signature matching dlux-iov format
-    // Format: username:contractId,cid1,cid2,cid3
-    // Note: account.sign() will add its own timestamp
-    const batchMessage = `${this.account.username}:${batchContract.i}${batchContract.files}`;
-    const batchFosig = await this.account.sign(batchMessage, 'Posting');
-    
-    // Set up batch contract with all CIDs and signature
-    batchContract.df = cids;
-    batchContract.fosig = batchFosig;
     // Set files as comma-separated string starting with comma (dlux-iov format)
     batchContract.files = ',' + cids.join(',');
     batchContract.t = this.account.username; // Add account username for authorization
+    
+    // Create batch authorization signature matching dlux-iov format
+    // Format: username:contractId,cid1,cid2,cid3
+    const batchMessage = `${this.account.username}:${batchContract.i}${batchContract.files}`;
+    const authHeaders = await this.account.sign(batchMessage, 'Posting');
+    
+    // Set up batch contract with all CIDs and signature
+    batchContract.df = cids;
+    batchContract.fosig = authHeaders.signature;
     
     // Get batch authorization
     await this.authorizeBatchUpload(batchContract, cids, sizes);
@@ -912,7 +912,7 @@ export class SPKFileUpload {
       await this.uploadNodeToIPFS(uploadFile, batchContract.i, fileProgress, {
         ...batchContract,
         cid: cid,
-        fosig: batchFosig,  // Use batch signature
+        fosig: batchContract.fosig,  // Use batch signature
         df: [cid]
       });
 

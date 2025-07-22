@@ -361,20 +361,17 @@ export class SPKAccount {
       throw new Error('Keychain/Signer not available');
     }
 
-    const timestamp = Date.now().toString();
-    const fullMessage = `${timestamp}:${message}`;
-
     try {
       const { signature } = await this.keychainAdapter.sign(
         this.username,
-        fullMessage,
+        message,
         keyType
       );
 
       return {
         account: this.username,
         signature,
-        timestamp,
+        timestamp: Date.now().toString(), // Keep timestamp in return for compatibility
       };
     } catch (error: any) {
       throw new Error(`Failed to sign message: ${error.message}`);
