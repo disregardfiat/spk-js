@@ -239,7 +239,8 @@ export class SPKFileUpload {
     // Set up batch contract with all CIDs and signature
     batchContract.df = cids;
     batchContract.fosig = batchFosig;
-    batchContract.files = cids.map((cid, i) => ({ cid, size: sizes[i] }));
+    // Set files as comma-separated string starting with comma (dlux-iov format)
+    batchContract.files = ',' + cids.join(',');
     batchContract.t = this.account.username; // Add account username for authorization
     
     // Get batch authorization
@@ -463,6 +464,7 @@ export class SPKFileUpload {
   private async authorizeBatchUpload(contract: any, cids: string[], sizes: number[]): Promise<any> {
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     
+    // Use the first CID for authorization (like dlux-iov does)
     const response = await fetch(`${apiUrl}/upload-authorize`, {
       method: 'POST',
       headers: {
@@ -470,13 +472,12 @@ export class SPKFileUpload {
         'X-Sig': contract.fosig,
         'X-Account': contract.t,
         'X-Contract': contract.i,
-        'X-Cids': cids.join(','),
-        'X-Sizes': sizes.join(','),
+        'X-Cid': cids[0], // Use singular X-Cid with first CID
         'X-Chain': 'HIVE'
       },
       body: JSON.stringify({
         files: contract.files,
-        meta: contract.m || {}
+        meta: encodeURI(JSON.stringify(contract.m || {})) // Encode meta like dlux-iov
       })
     });
 
@@ -853,7 +854,8 @@ export class SPKFileUpload {
     // Set up batch contract with all CIDs and signature
     batchContract.df = cids;
     batchContract.fosig = batchFosig;
-    batchContract.files = cids.map((cid, i) => ({ cid, size: sizes[i] }));
+    // Set files as comma-separated string starting with comma (dlux-iov format)
+    batchContract.files = ',' + cids.join(',');
     batchContract.t = this.account.username; // Add account username for authorization
     
     // Get batch authorization
