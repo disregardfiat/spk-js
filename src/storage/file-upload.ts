@@ -231,9 +231,10 @@ export class SPKFileUpload {
     // Set batch contract properties
     batchContract.autoRenew = options.autoRenew;
     
-    // Create batch authorization signature
+    // Create batch authorization signature matching dlux-iov format
+    // Format: username:contractId,cid1,cid2,cid3
     // Note: account.sign() will add its own timestamp
-    const batchMessage = `${batchContract.i}:${cids.join(',')}:${sizes.join(',')}`;
+    const batchMessage = `${this.account.username}:${batchContract.i}${batchContract.files}`;
     const batchFosig = await this.account.sign(batchMessage, 'Posting');
     
     // Set up batch contract with all CIDs and signature
@@ -846,9 +847,10 @@ export class SPKFileUpload {
     // Set batch contract properties
     batchContract.autoRenew = options.autoRenew;
     
-    // Create batch authorization signature
+    // Create batch authorization signature matching dlux-iov format
+    // Format: username:contractId,cid1,cid2,cid3
     // Note: account.sign() will add its own timestamp
-    const batchMessage = `${batchContract.i}:${cids.join(',')}:${sizes.join(',')}`;
+    const batchMessage = `${this.account.username}:${batchContract.i}${batchContract.files}`;
     const batchFosig = await this.account.sign(batchMessage, 'Posting');
     
     // Set up batch contract with all CIDs and signature
