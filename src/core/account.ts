@@ -20,6 +20,7 @@ export class SPKAccount {
   public pubKey: string = 'NA';
   public contracts: any[] = [];
   public file_contracts: Record<string, any> = {};
+  public channels: Record<string, any> = {};
   public spk_power: number = 0;
   public head_block: number = 0;
   public liq_broca: number = 0;

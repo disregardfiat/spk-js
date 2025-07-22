@@ -67,28 +67,53 @@ export class SPKContractCreator {
       // Refresh account data to get latest contracts
       await this.spk.refresh();
       
-      // Check if we have any file contracts
-      if (!this.spk.file_contracts || Object.keys(this.spk.file_contracts).length === 0) {
-        return null;
-      }
-      
-      // Look for open contracts with enough space
-      for (const [contractId, contract] of Object.entries(this.spk.file_contracts)) {
-        // Check if contract is open (has remaining space)
-        const c = contract as any;
-        if (c.t && c.r) {
-          const usedSpace = c.t || 0;
-          const totalSpace = c.r || 0;
-          const remainingSpace = totalSpace - usedSpace;
+      // Check channels first (this is where contracts are stored)
+      if (this.spk.channels && this.spk.channels[this.spk.username]) {
+        console.log('Checking channels for existing contracts...');
+        const userChannels = this.spk.channels[this.spk.username];
+        
+        for (const [channelKey, contract] of Object.entries(userChannels)) {
+          const c = contract as any;
+          console.log(`Checking contract ${c.i}: r=${c.r}, a=${c.a}`);
+          
+          // Check if contract has space
+          // a = available bytes
+          // r = BROCA cost (not space!)
+          // t = account (to/uploader)
+          // i = contract ID
+          const availableSpace = c.a || 0;
           
           // Check if there's enough space for the new file
-          if (remainingSpace >= requiredSize) {
-            console.log(`Found existing contract ${contractId} with ${remainingSpace} bytes available`);
+          if (availableSpace >= requiredSize) {
+            console.log(`Found existing contract ${c.i} with ${availableSpace} bytes available`);
             return {
               ...c,
-              i: contractId,
-              remainingSpace
+              remainingSpace: availableSpace
             };
+          } else {
+            console.log(`Contract ${c.i} has insufficient space: ${availableSpace} bytes available, need ${requiredSize} bytes`);
+          }
+        }
+      }
+      
+      // Also check file_contracts if it exists
+      if (this.spk.file_contracts && Object.keys(this.spk.file_contracts).length > 0) {
+        console.log('Checking file_contracts...');
+        for (const [contractId, contract] of Object.entries(this.spk.file_contracts)) {
+          const c = contract as any;
+          if (c.t && c.r) {
+            const usedSpace = c.t || 0;
+            const totalSpace = c.r || 0;
+            const remainingSpace = totalSpace - usedSpace;
+            
+            if (remainingSpace >= requiredSize) {
+              console.log(`Found existing contract ${contractId} with ${remainingSpace} bytes available`);
+              return {
+                ...c,
+                i: contractId,
+                remainingSpace
+              };
+            }
           }
         }
       }
@@ -168,8 +193,31 @@ export class SPKContractCreator {
       // Sign and broadcast the transaction
       const result = await this.broadcastTransaction(customJson);
       
-      // Generate contract ID from transaction
-      const contractId = this.generateContractId(result.id);
+      // Wait a moment for the transaction to be processed
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Fetch the user's contracts to find the newly created one
+      const accountData = await this.spk.api.get(`/@${this.spk.username}`);
+      
+      // Look for the contract that was just created (newest one)
+      let contractId: string | null = null;
+      if (accountData.channels && accountData.channels[this.spk.username]) {
+        // Find the contract with matching transaction ID or the newest one
+        const channels = accountData.channels[this.spk.username];
+        for (const [key, contract] of Object.entries(channels)) {
+          const c = contract as any;
+          // TODO: Match by transaction ID when available
+          // For now, assume the newest contract is ours
+          contractId = c.i;
+          break;
+        }
+      }
+      
+      if (!contractId) {
+        // Fallback to generated ID if we can't find the real one
+        console.warn('Could not find contract ID from blockchain, using generated ID');
+        contractId = this.generateContractId(result.id);
+      }
       
       // Return contract details
       return {
