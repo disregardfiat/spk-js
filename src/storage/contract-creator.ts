@@ -13,6 +13,7 @@ export interface ContractOptions {
     weight: number; // 0-1 (0-100%)
   };
   metadata?: any;
+  forceNew?: boolean; // Force creation of new contract even if existing ones are available
 }
 
 export interface ContractResult {
@@ -26,6 +27,7 @@ export interface ContractResult {
   brocaCost: number;
   size: number;
   duration: number;
+  reused?: boolean;
 }
 
 export interface DirectUploadResult extends ContractResult {
@@ -58,10 +60,73 @@ export class SPKContractCreator {
   }
 
   /**
+   * Find an existing open contract with enough space
+   */
+  async findOpenContract(requiredSize: number): Promise<any | null> {
+    try {
+      // Refresh account data to get latest contracts
+      await this.spk.refresh();
+      
+      // Check if we have any file contracts
+      if (!this.spk.file_contracts || Object.keys(this.spk.file_contracts).length === 0) {
+        return null;
+      }
+      
+      // Look for open contracts with enough space
+      for (const [contractId, contract] of Object.entries(this.spk.file_contracts)) {
+        // Check if contract is open (has remaining space)
+        const c = contract as any;
+        if (c.t && c.r) {
+          const usedSpace = c.t || 0;
+          const totalSpace = c.r || 0;
+          const remainingSpace = totalSpace - usedSpace;
+          
+          // Check if there's enough space for the new file
+          if (remainingSpace >= requiredSize) {
+            console.log(`Found existing contract ${contractId} with ${remainingSpace} bytes available`);
+            return {
+              ...c,
+              i: contractId,
+              remainingSpace
+            };
+          }
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.warn('Error checking existing contracts:', error);
+      return null;
+    }
+  }
+
+  /**
    * Create a storage contract for files
    */
   async createStorageContract(totalSize: number, options: ContractOptions = {}): Promise<ContractResult> {
     try {
+      // First check if we can reuse an existing contract
+      const existingContract = await this.findOpenContract(totalSize);
+      if (existingContract && !options.forceNew) {
+        console.log('Reusing existing contract:', existingContract.i);
+        
+        // Get provider details from the existing contract
+        const provider = {
+          nodeId: existingContract.b || existingContract.broker,
+          api: existingContract.api || `https://${existingContract.b || existingContract.broker}`
+        };
+        
+        return {
+          success: true,
+          contractId: existingContract.i,
+          transactionId: existingContract.txId || '',
+          provider,
+          brocaCost: 0, // No additional BROCA cost for reusing
+          size: totalSize,
+          duration: 30,
+          reused: true
+        };
+      }
       // Calculate BROCA cost
       const brocaAmount = await this.calculateBrocaCost(totalSize, options.duration || 30);
       
@@ -167,20 +232,17 @@ export class SPKContractCreator {
       throw new Error('Keychain not available');
     }
     
-    return new Promise((resolve, reject) => {
-      this.spk.keychainAdapter.requestBroadcast(
+    // Use the KeychainAdapter's broadcast method instead of calling requestBroadcast directly
+    try {
+      const result = await this.spk.keychainAdapter.broadcast(
         this.spk.username,
         [['custom_json', customJson]],
-        'posting',
-        (response: any) => {
-          if (response.success) {
-            resolve(response.result);
-          } else {
-            reject(new Error(response.error || 'Broadcast failed'));
-          }
-        }
+        'posting'
       );
-    });
+      return result;
+    } catch (error: any) {
+      throw new Error(error.message || 'Broadcast failed');
+    }
   }
 
   /**

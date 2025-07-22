@@ -135,8 +135,8 @@ export class SPKFileUpload {
     }
     
     // Generate fosig for authorization
-    const timestamp = Date.now();
-    contract.fosig = await this.account.sign(`${contract.i}:${cid}:${timestamp}`);
+    // Note: account.sign() will add its own timestamp
+    contract.fosig = await this.account.sign(`${contract.i}:${cid}`, 'Posting');
 
     // Upload file with progress tracking
     const fileProgress = metadata?.onProgress || options.onProgress;
@@ -211,9 +211,9 @@ export class SPKFileUpload {
     batchContract.autoRenew = options.autoRenew;
     
     // Create batch authorization signature
-    const timestamp = Date.now();
-    const batchChallenge = `${batchContract.i}:${cids.join(',')}:${sizes.join(',')}:${timestamp}`;
-    const batchFosig = await this.account.sign(batchChallenge);
+    // Note: account.sign() will add its own timestamp
+    const batchMessage = `${batchContract.i}:${cids.join(',')}:${sizes.join(',')}`;
+    const batchFosig = await this.account.sign(batchMessage, 'Posting');
     
     // Set up batch contract with all CIDs and signature
     batchContract.df = cids;
@@ -725,8 +725,8 @@ export class SPKFileUpload {
     }
     
     // Generate fosig for authorization
-    const timestamp = Date.now();
-    contract.fosig = await this.account.sign(`${contract.i}:${cid}:${timestamp}`);
+    // Note: account.sign() will add its own timestamp
+    contract.fosig = await this.account.sign(`${contract.i}:${cid}`, 'Posting');
 
     // Upload file with progress tracking
     const fileProgress = metadata?.onProgress || options.onProgress;
@@ -803,9 +803,9 @@ export class SPKFileUpload {
     batchContract.autoRenew = options.autoRenew;
     
     // Create batch authorization signature
-    const timestamp = Date.now();
-    const batchChallenge = `${batchContract.i}:${cids.join(',')}:${sizes.join(',')}:${timestamp}`;
-    const batchFosig = await this.account.sign(batchChallenge);
+    // Note: account.sign() will add its own timestamp
+    const batchMessage = `${batchContract.i}:${cids.join(',')}:${sizes.join(',')}`;
+    const batchFosig = await this.account.sign(batchMessage, 'Posting');
     
     // Set up batch contract with all CIDs and signature
     batchContract.df = cids;
