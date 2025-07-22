@@ -119,6 +119,11 @@ export class SPKFileUpload {
     // Get the full contract details
     const contract = await this.contractCreator.getContractDetails(contractResult.contractId);
     
+    // Ensure contract has the ID property
+    if (!contract.i) {
+      contract.i = contractResult.contractId;
+    }
+    
     // Add file-specific metadata to contract
     contract.df = [cid];
     contract.cid = cid;
@@ -206,6 +211,11 @@ export class SPKFileUpload {
     
     // Get the full contract details
     const batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+    
+    // Ensure contract has the ID property
+    if (!batchContract.i) {
+      batchContract.i = contractResult.contractId;
+    }
     
     // Set batch contract properties
     batchContract.autoRenew = options.autoRenew;
@@ -709,6 +719,11 @@ export class SPKFileUpload {
     // Get the full contract details
     const contract = await this.contractCreator.getContractDetails(contractResult.contractId);
     
+    // Ensure contract has the ID property
+    if (!contract.i) {
+      contract.i = contractResult.contractId;
+    }
+    
     // Add file-specific metadata to contract
     contract.df = [cid];
     contract.cid = cid;
@@ -798,6 +813,11 @@ export class SPKFileUpload {
     
     // Get the full contract details
     const batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+    
+    // Ensure contract has the ID property
+    if (!batchContract.i) {
+      batchContract.i = contractResult.contractId;
+    }
     
     // Set batch contract properties
     batchContract.autoRenew = options.autoRenew;
