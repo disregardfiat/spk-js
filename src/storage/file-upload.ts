@@ -206,11 +206,22 @@ export class SPKFileUpload {
       throw new Error('Failed to create storage contract');
     }
     
-    // Wait for contract to be available on the network
-    await this.waitForContract(contractResult.contractId);
+    let batchContract: any;
     
-    // Get the full contract details
-    const batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+    if ((contractResult as any).reused) {
+      // For reused contracts, fetch the full contract details
+      batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+      if (!batchContract) {
+        throw new Error('Failed to get reused contract details');
+      }
+      console.log('Using reused contract:', batchContract);
+    } else {
+      // Wait for new contract to be available on the network
+      await this.waitForContract(contractResult.contractId);
+      
+      // Get the full contract details
+      batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+    }
     
     // Ensure contract has the ID property
     if (!batchContract.i) {
@@ -809,11 +820,22 @@ export class SPKFileUpload {
       throw new Error('Failed to create storage contract');
     }
     
-    // Wait for contract to be available on the network
-    await this.waitForContract(contractResult.contractId);
+    let batchContract: any;
     
-    // Get the full contract details
-    const batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+    if ((contractResult as any).reused) {
+      // For reused contracts, fetch the full contract details
+      batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+      if (!batchContract) {
+        throw new Error('Failed to get reused contract details');
+      }
+      console.log('Using reused contract:', batchContract);
+    } else {
+      // Wait for new contract to be available on the network
+      await this.waitForContract(contractResult.contractId);
+      
+      // Get the full contract details
+      batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+    }
     
     // Ensure contract has the ID property
     if (!batchContract.i) {
