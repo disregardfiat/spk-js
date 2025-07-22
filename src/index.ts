@@ -53,7 +53,7 @@ export * from './filesystem';
 export default class SPK {
   public account: SPKAccount;
   private file: SPKFile;
-  private fileUpload: SPKFileUpload;
+  public fileUpload: SPKFileUpload;
   public drive: SPKDrive;
   private protocol: ProtocolManager;
   private tokens: TokenOperations;

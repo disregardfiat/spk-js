@@ -1,4 +1,4 @@
-import { Api } from '../core/api';
+import { SPKAPI } from '../core/api';
 import { 
   FileSystemEntry, 
   DirectoryListing, 
@@ -8,10 +8,10 @@ import {
 } from './types';
 
 export class FileSystem {
-  private api: Api;
+  private api: SPKAPI;
   private options: FileSystemOptions;
 
-  constructor(api: Api, options?: FileSystemOptions) {
+  constructor(api: SPKAPI, options?: FileSystemOptions) {
     this.api = api;
     this.options = {
       baseUrl: options?.baseUrl || 'https://honeygraph.dlux.io',
