@@ -229,6 +229,7 @@ export class SPKFileUpload {
     batchContract.df = cids;
     batchContract.fosig = batchFosig;
     batchContract.files = cids.map((cid, i) => ({ cid, size: sizes[i] }));
+    batchContract.t = this.account.username; // Add account username for authorization
     
     // Get batch authorization
     await this.authorizeBatchUpload(batchContract, cids, sizes);
@@ -831,6 +832,7 @@ export class SPKFileUpload {
     batchContract.df = cids;
     batchContract.fosig = batchFosig;
     batchContract.files = cids.map((cid, i) => ({ cid, size: sizes[i] }));
+    batchContract.t = this.account.username; // Add account username for authorization
     
     // Get batch authorization
     await this.authorizeBatchUpload(batchContract, cids, sizes);
