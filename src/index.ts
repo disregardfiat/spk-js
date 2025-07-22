@@ -6,6 +6,7 @@ import { SPKConfig } from './core/config';
 import { SPKDrive } from './drive';
 import { ProtocolManager } from './core/protocol';
 import { TokenOperations } from './tokens/operations';
+import { FileSystem } from './filesystem';
 
 export * from './core/account';
 export * from './core/api';
@@ -43,6 +44,9 @@ export * as precision from './utils/precision';
 // Export UI utilities
 export * from './ui/icons';
 
+// Export filesystem functionality
+export * from './filesystem';
+
 /**
  * Main SPK Network interface
  */
@@ -53,6 +57,7 @@ export default class SPK {
   public drive: SPKDrive;
   private protocol: ProtocolManager;
   private tokens: TokenOperations;
+  public filesystem: FileSystem;
 
   constructor(username: string, options: Partial<SPKConfig> = {}) {
     this.account = new SPKAccount(username, options);
@@ -66,6 +71,9 @@ export default class SPK {
       this.account.api,
       this.protocol
     );
+    this.filesystem = new FileSystem(this.account.api, {
+      baseUrl: 'https://honeygraph.dlux.io'
+    });
     
     // Set global SPK instance for contract creator
     (global as any).currentSPKInstance = this;

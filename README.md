@@ -292,6 +292,56 @@ const metadata = Encryption.parseMetadataString(metadataString);
 
 The SPK Network provides a virtual file system for organizing uploaded files. Files can be organized into folders and tagged with metadata for better organization and discovery.
 
+### File System API
+
+SPK-JS includes a FileSystem module that provides easy access to the Honeygraph file system API:
+
+```javascript
+// Browse user's files
+const listing = await spk.filesystem.browse('username');
+console.log(`Found ${listing.contents.length} items`);
+
+// Browse specific folder
+const docs = await spk.filesystem.browse('username', '/Documents');
+
+// Get file URL
+const fileUrl = await spk.filesystem.getFileUrl('username', '/Images/photo.jpg');
+
+// Search for files
+const videos = await spk.filesystem.searchFiles('username', '*.mp4', '/Videos');
+
+// Check if path exists
+const exists = await spk.filesystem.exists('username', '/Music');
+
+// Get preset folders
+const folders = await spk.filesystem.getPresetFolders('username');
+// Returns: Documents, Images, Videos, Music, Archives, Code, Trash, Misc
+
+// Calculate directory size
+const size = await spk.filesystem.getDirectorySize('username', '/Documents');
+console.log(`Total size: ${(size / 1024 / 1024).toFixed(2)} MB`);
+
+// Build file tree
+const tree = await spk.filesystem.buildFileTree('username', '/', 2);
+
+// Access shared files
+const sharedWithMe = await spk.filesystem.getSharedWithMe('username');
+const sharedByMe = await spk.filesystem.getSharedByMe('username');
+```
+
+### File System Entry Structure
+
+Each file or directory entry contains:
+- `name`: File/folder name
+- `type`: 'file' or 'directory'
+- `path`: Full path
+- `cid`: IPFS content identifier (files only)
+- `size`: File size in bytes
+- `mimeType`: File MIME type
+- `itemCount`: Number of items (directories only)
+- `contract`: Storage contract details
+- `metadata`: Additional metadata (encryption, tags, etc.)
+
 ## Metadata
 
 SPK Network supports rich metadata for uploaded files including tags, labels, and licenses. This metadata helps with file organization, discovery, and rights management.
