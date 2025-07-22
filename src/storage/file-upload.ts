@@ -209,8 +209,8 @@ export class SPKFileUpload {
     let batchContract: any;
     
     if ((contractResult as any).reused) {
-      // For reused contracts, fetch the full contract details
-      batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+      // For reused contracts, use the existing contract data
+      batchContract = (contractResult as any).existingContract;
       if (!batchContract) {
         throw new Error('Failed to get reused contract details');
       }
@@ -823,8 +823,8 @@ export class SPKFileUpload {
     let batchContract: any;
     
     if ((contractResult as any).reused) {
-      // For reused contracts, fetch the full contract details
-      batchContract = await this.contractCreator.getContractDetails(contractResult.contractId);
+      // For reused contracts, use the existing contract data
+      batchContract = (contractResult as any).existingContract;
       if (!batchContract) {
         throw new Error('Failed to get reused contract details');
       }

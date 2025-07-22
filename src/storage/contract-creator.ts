@@ -28,6 +28,7 @@ export interface ContractResult {
   size: number;
   duration: number;
   reused?: boolean;
+  existingContract?: any; // The full contract object when reusing
 }
 
 export interface DirectUploadResult extends ContractResult {
@@ -149,7 +150,8 @@ export class SPKContractCreator {
           brocaCost: 0, // No additional BROCA cost for reusing
           size: totalSize,
           duration: 30,
-          reused: true
+          reused: true,
+          existingContract // Include the full contract object
         };
       }
       // Calculate BROCA cost
