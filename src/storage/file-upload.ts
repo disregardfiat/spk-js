@@ -305,6 +305,7 @@ export class SPKFileUpload {
 
     // Update the contract with batch metadata
     batchContract.metadata = batchMetadata;
+    batchContract.m = batchMetadata; // Also set m for authorization
 
     return {
       results,
@@ -927,6 +928,7 @@ export class SPKFileUpload {
 
     // Update the contract with batch metadata
     batchContract.metadata = batchMetadata;
+    batchContract.m = batchMetadata; // Also set m for authorization
 
     return {
       results,
@@ -1058,25 +1060,19 @@ export class SPKFileUpload {
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     const chunkSize = chunkBuffer.length;
     
-    const contentRange = `bytes ${start}-${start + chunkSize - 1}/${totalSize}`;
-    console.log('Upload chunk details:', {
-      fileName: chunkName,
-      start,
-      chunkSize,
-      totalSize,
-      contentRange,
-      isFullFile: start === 0 && chunkSize === totalSize
-    });
-    
     // Get form headers (includes boundary)
-    const headers = {
+    const headers: any = {
       ...form.getHeaders(),
       'X-Cid': authData.cid || contract.df[0],
       'X-Contract': contract.i,
       'X-Sig': contract.fosig,
-      'X-Account': contract.t,
-      'Content-Range': contentRange
+      'X-Account': contract.t
     };
+    
+    // Only add Content-Range for actual chunks, not full files
+    if (!(start === 0 && chunkSize === totalSize)) {
+      headers['Content-Range'] = `bytes ${start}-${start + chunkSize - 1}/${totalSize}`;
+    }
     
     try {
       const response = await fetch(`${apiUrl}/upload`, {
