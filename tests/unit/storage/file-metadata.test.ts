@@ -209,11 +209,15 @@ describe('SPKFileMetadata', () => {
 
   describe('constants', () => {
     it('should have correct tag values', () => {
-      expect(TAGS).toHaveLength(2);
-      expect(TAGS[0].value).toBe(4);
-      expect(TAGS[0].label).toBe('NSFW');
-      expect(TAGS[1].value).toBe(8);
-      expect(TAGS[1].label).toBe('Executable');
+      expect(TAGS).toHaveLength(4);
+      expect(TAGS[0].value).toBe(1);
+      expect(TAGS[0].label).toBe('Encrypted');
+      expect(TAGS[1].value).toBe(2);
+      expect(TAGS[1].label).toBe('Hidden');
+      expect(TAGS[2].value).toBe(4);
+      expect(TAGS[2].label).toBe('NSFW');
+      expect(TAGS[3].value).toBe(8);
+      expect(TAGS[3].label).toBe('Executable');
     });
 
     it('should have correct license values', () => {

@@ -73,7 +73,7 @@ export class SPKContractCreator {
         console.log('Checking channels for existing contracts...');
         const userChannels = this.spk.channels[this.spk.username];
         
-        for (const [channelKey, contract] of Object.entries(userChannels)) {
+        for (const [, contract] of Object.entries(userChannels)) {
           const c = contract as any;
           console.log(`Checking contract ${c.i}: r=${c.r}, a=${c.a}`);
           
@@ -206,7 +206,7 @@ export class SPKContractCreator {
       if (accountData.channels && accountData.channels[this.spk.username]) {
         // Find the contract with matching transaction ID or the newest one
         const channels = accountData.channels[this.spk.username];
-        for (const [key, contract] of Object.entries(channels)) {
+        for (const [, contract] of Object.entries(channels)) {
           const c = contract as any;
           // TODO: Match by transaction ID when available
           // For now, assume the newest contract is ours

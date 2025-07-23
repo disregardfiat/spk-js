@@ -36,6 +36,11 @@ export interface LabelOption {
 // Available tags (bitwise flags)
 export const TAGS: TagOption[] = [
   {
+    value: 1,
+    label: 'Encrypted',
+    description: 'File is encrypted'
+  },
+  {
     value: 2,
     label: 'Hidden',
     description: 'Hidden from file explorer'

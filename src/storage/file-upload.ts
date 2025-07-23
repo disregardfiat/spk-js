@@ -86,16 +86,11 @@ export class SPKFileUpload {
 
     // Handle encryption if requested
     let uploadFile = file;
-    let encryptionMetadata: { encrypted?: boolean; recipients?: string[] } = {};
     if (options.encrypt && options.encrypt.length > 0) {
       const encrypted = await this.encrypt(file, options.encrypt);
       uploadFile = new File([encrypted.encryptedData], file.name + '.enc', {
         type: 'application/octet-stream',
       });
-      encryptionMetadata = {
-        encrypted: true,
-        recipients: options.encrypt,
-      };
     }
 
     // Handle thumbnail
@@ -304,7 +299,7 @@ export class SPKFileUpload {
     console.log('Generated metadata string:', metadataString);
     
     // Get batch authorization with metadata
-    await this.authorizeBatchUpload(batchContract, cids, sizes);
+    await this.authorizeBatchUpload(batchContract, cids);
     
     // Process file uploads
     const results: UploadResult[] = [];
@@ -498,7 +493,7 @@ export class SPKFileUpload {
   /**
    * Authorize batch upload with TROLE
    */
-  private async authorizeBatchUpload(contract: any, cids: string[], sizes: number[]): Promise<any> {
+  private async authorizeBatchUpload(contract: any, cids: string[]): Promise<any> {
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     
     console.log('authorizeBatchUpload - contract.m:', contract.m);
@@ -942,7 +937,7 @@ export class SPKFileUpload {
     console.log('Generated metadata string (Node.js):', metadataString);
     
     // Get batch authorization with metadata
-    await this.authorizeBatchUpload(batchContract, cids, sizes);
+    await this.authorizeBatchUpload(batchContract, cids);
     
     // Process file uploads
     const results: UploadResult[] = [];
