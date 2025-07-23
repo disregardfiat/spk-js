@@ -364,15 +364,12 @@ export class SPKFileUpload {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    // Try both CID versions to see which one matches
-    const cidV0 = await Hash.of(buffer, { cidVersion: 0 });
-    const cidV1 = await Hash.of(buffer, { cidVersion: 1 });
-    console.log(`[SPK-JS] Generated CID for ${file.name}:`);
-    console.log(`  - CID v0: ${cidV0}`);
-    console.log(`  - CID v1: ${cidV1}`);
+    // Server seems to use default settings, so let's match that
+    const cidDefault = await Hash.of(buffer);
+    console.log(`[SPK-JS] Generated CID for ${file.name}: ${cidDefault}`);
     console.log(`  - Buffer length: ${buffer.length}`);
-    // Default to v0 which is what IPFS traditionally uses for files
-    return cidV0;
+    console.log(`  - First 20 bytes:`, buffer.slice(0, 20));
+    return cidDefault;
   }
 
   
@@ -925,6 +922,7 @@ export class SPKFileUpload {
 
       // Upload file using the batch authorization
       const fileProgress = metadata?.onProgress || options.onProgress;
+      console.log(`[SPK-JS] Uploading file with CID ${cid}, uploadFile is encrypted: ${uploadFile !== file}`);
       await this.uploadNodeToIPFS(uploadFile, batchContract.i, fileProgress, {
         ...batchContract,
         cid: cid,
@@ -991,15 +989,12 @@ export class SPKFileUpload {
       throw new Error('Invalid file: must be a Buffer or have buffer/arrayBuffer property');
     }
 
-    // Try both CID versions to see which one matches
-    const cidV0 = await Hash.of(buffer, { cidVersion: 0 });
-    const cidV1 = await Hash.of(buffer, { cidVersion: 1 });
-    console.log(`[SPK-JS NODE] Generated CID for file:`);
-    console.log(`  - CID v0: ${cidV0}`);
-    console.log(`  - CID v1: ${cidV1}`);
+    // Server seems to use default settings, so let's match that
+    const cidDefault = await Hash.of(buffer);
+    console.log(`[SPK-JS NODE] Generated CID: ${cidDefault}`);
     console.log(`  - Buffer length: ${buffer.length}`);
-    // Default to v0 which is what IPFS traditionally uses for files
-    return cidV0;
+    console.log(`  - First 20 bytes:`, buffer.slice(0, 20));
+    return cidDefault;
   }
 
   /**
@@ -1016,8 +1011,9 @@ export class SPKFileUpload {
       contract = await this.account.api.get(`/api/fileContract/${contractId}`);
     }
     
-    // Get CID
-    const cid = contract.df?.[0] || await this.hashNodeFile(file);
+    // Get CID - for batch uploads, it's passed in contract.cid
+    const cid = contract.cid || contract.df?.[0] || await this.hashNodeFile(file);
+    console.log(`[SPK-JS] uploadNodeToIPFS using CID: ${cid}`);
     
     // Authorize the upload
     const authData = await this.authorizeUpload(contract, cid);
@@ -1030,7 +1026,7 @@ export class SPKFileUpload {
 
     if (chunks === 1) {
       // Small file, single upload
-      await this.uploadNodeChunk(file, contract, authData, 0, fileSize, onProgress);
+      await this.uploadNodeChunk(file, contract, authData, 0, fileSize, onProgress, cid);
     } else {
       // Large file, chunked upload
       let uploaded = 0;
@@ -1055,7 +1051,7 @@ export class SPKFileUpload {
         await this.uploadNodeChunk(chunk, contract, authData, start, fileSize, (chunkProgress) => {
           const totalProgress = ((uploaded + (chunkProgress * chunkBuffer.length) / 100) / fileSize) * 100;
           onProgress?.(Math.round(totalProgress));
-        });
+        }, cid);
 
         uploaded += chunkBuffer.length;
       }
@@ -1071,7 +1067,8 @@ export class SPKFileUpload {
     authData: any,
     start: number,
     totalSize: number,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    cid?: string
   ): Promise<void> {
     const fetch = require('node-fetch');
     const FormData = require('form-data');
@@ -1081,6 +1078,9 @@ export class SPKFileUpload {
     // Get chunk buffer
     const chunkBuffer = chunk.buffer || chunk;
     const chunkName = chunk.name || 'chunk.dat';
+    
+    // Debug: Log the buffer we're about to send
+    console.log(`[SPK-JS NODE] Uploading chunk, buffer length: ${chunkBuffer.length}, first 20 bytes:`, chunkBuffer.slice(0, 20));
     
     // Append chunk to match dlux-iov format
     // The server expects the field name to be 'chunk'
@@ -1092,7 +1092,7 @@ export class SPKFileUpload {
     // Get form headers (includes boundary)
     const headers: any = {
       ...form.getHeaders(),
-      'X-Cid': authData.cid || contract.df[0],
+      'X-Cid': cid || authData.cid || contract.df[0],  // Use passed CID or fallback
       'X-Contract': contract.i,
       'X-Sig': contract.fosig,
       'X-Account': contract.t
