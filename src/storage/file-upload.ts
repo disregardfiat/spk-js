@@ -1120,10 +1120,8 @@ export class SPKFileUpload {
       'X-Account': contract.t
     };
     
-    // Only add Content-Range for actual chunks, not full files
-    if (!(start === 0 && chunkSize === totalSize)) {
-      headers['Content-Range'] = `bytes ${start}-${start + chunkSize - 1}/${totalSize}`;
-    }
+    // Always add Content-Range header - trole expects it for all uploads
+    headers['Content-Range'] = `bytes ${start}-${start + chunkSize - 1}/${totalSize}`;
     
     try {
       const response = await fetch(`${apiUrl}/upload`, {
