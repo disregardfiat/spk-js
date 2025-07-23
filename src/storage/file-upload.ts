@@ -364,7 +364,7 @@ export class SPKFileUpload {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    return Hash.of(buffer);
+    return Hash.of(buffer, { unixfs: 'UnixFS' });
   }
 
   
@@ -983,7 +983,7 @@ export class SPKFileUpload {
       throw new Error('Invalid file: must be a Buffer or have buffer/arrayBuffer property');
     }
 
-    return Hash.of(buffer);
+    return Hash.of(buffer, { unixfs: 'UnixFS' });
   }
 
   /**
@@ -1066,12 +1066,9 @@ export class SPKFileUpload {
     const chunkBuffer = chunk.buffer || chunk;
     const chunkName = chunk.name || 'chunk.dat';
     
-    // Append chunk without filename to match dlux-iov format
-    // In Node.js form-data, we need to explicitly set options to avoid filename
-    form.append('chunk', chunkBuffer, {
-      filename: '',
-      contentType: 'application/octet-stream'
-    });
+    // Append chunk to match dlux-iov format
+    // The server expects the field name to be 'chunk'
+    form.append('chunk', chunkBuffer);
     
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     const chunkSize = chunkBuffer.length;
