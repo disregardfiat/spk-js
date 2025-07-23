@@ -3,6 +3,7 @@ import { BrocaCalculator } from '../tokens/broca';
 import { SPKFileMetadata } from './file-metadata';
 import { FileMetadataItem, UploadOptions, UploadResult } from './file';
 import { SPKContractCreator } from './contract-creator';
+import { BatchMetadataEncoder } from './batch-metadata-encoder';
 import { Encryption } from '../crypto/encryption';
 import { KeyManager } from '../crypto/key-management';
 import Hash from 'ipfs-only-hash';
@@ -129,19 +130,36 @@ export class SPKFileUpload {
     contract.cid = cid;
     contract.size = uploadFile.size;
     contract.autoRenew = metadata?.autoRenew ?? options.autoRenew;
-    contract.metadata = {
-      ...spkMetadata,
-      thumb: thumbnailCid
+    
+    // Create metadata string for single file
+    const encoder = new BatchMetadataEncoder();
+    const nameParts = file.name.split('.');
+    const ext = nameParts.length > 1 ? nameParts.pop()! : 'unk';
+    const nameWithoutExt = nameParts.join('.');
+    
+    const fileForEncoder = {
+      cid: cid,
+      name: nameWithoutExt,
+      ext: ext,
+      path: metadata?.path || '/',
+      thumb: thumbnailCid,
+      metadata: metadata ? new SPKFileMetadata(spkMetadata) : undefined
     };
-    // Add encryption info to contract if encrypted
-    if (encryptionMetadata.encrypted) {
-      contract.encrypted = encryptionMetadata.encrypted;
-      contract.recipients = encryptionMetadata.recipients;
-    }
+    
+    const metadataString = encoder.encode([fileForEncoder], {
+      encrypt: options.encrypt
+    });
+    
+    contract.m = metadataString;
+    contract.files = ',' + cid; // Single file format
+    contract.t = this.account.username; // Add account username
     
     // Generate fosig for authorization
     // Note: account.sign() will add its own timestamp
     contract.fosig = await this.account.sign(`${contract.i}:${cid}`, 'Posting');
+    
+    // Authorize the upload
+    await this.authorizeUpload(contract, cid);
 
     // Upload file with progress tracking
     const fileProgress = metadata?.onProgress || options.onProgress;
@@ -244,34 +262,19 @@ export class SPKFileUpload {
     batchContract.df = cids;
     batchContract.fosig = authHeaders.signature;
     
-    // Get batch authorization
-    await this.authorizeBatchUpload(batchContract, cids, sizes);
+    // Prepare batch metadata BEFORE authorization
+    const encoder = new BatchMetadataEncoder();
+    const filesForEncoder: any[] = [];
     
-    // Prepare batch metadata
-    const batchMetadata: any[] = [];
-    const results: UploadResult[] = [];
-    
-    // Process each file
+    // Process metadata for each file first
     for (let i = 0; i < filesWithMetadata.length; i++) {
       const { file, metadata, cid } = filesWithMetadata[i];
       
-      // Convert metadata
-      const spkMetadata = metadata ? this.convertToSPKMetadata(metadata) : {};
+      // Get file extension
+      const nameParts = file.name.split('.');
+      const ext = nameParts.length > 1 ? nameParts.pop()! : 'unk';
+      const nameWithoutExt = nameParts.join('.');
       
-      // Handle encryption
-      let uploadFile = file;
-      let encryptionMetadata: { encrypted?: boolean; recipients?: string[] } = {};
-      if (options.encrypt && options.encrypt.length > 0) {
-        const encrypted = await this.encrypt(file, options.encrypt);
-        uploadFile = new File([encrypted.encryptedData], file.name + '.enc', {
-          type: 'application/octet-stream',
-        });
-        encryptionMetadata = {
-          encrypted: true,
-          recipients: options.encrypt,
-        };
-      }
-
       // Handle thumbnail
       let thumbnailCid = metadata?.thumbnail;
       if (!thumbnailCid && file.type.startsWith('image/')) {
@@ -279,13 +282,44 @@ export class SPKFileUpload {
         thumbnailCid = generatedThumb || undefined;
       }
 
-      // Add file metadata to batch
-      batchMetadata.push({
+      // Prepare file data for encoder
+      filesForEncoder.push({
         cid: cid!,
-        ...spkMetadata,
+        name: nameWithoutExt,
+        ext: ext,
+        path: metadata?.path || '/',  // Default to root if no path
         thumb: thumbnailCid,
-        ...encryptionMetadata
+        metadata: metadata ? new SPKFileMetadata(this.convertToSPKMetadata(metadata)) : undefined
       });
+    }
+    
+    // Create the compact metadata string
+    const metadataString = encoder.encode(filesForEncoder, {
+      encrypt: options.encrypt
+    });
+    
+    // Set metadata string on contract BEFORE authorization
+    batchContract.m = metadataString;
+    
+    console.log('Generated metadata string:', metadataString);
+    
+    // Get batch authorization with metadata
+    await this.authorizeBatchUpload(batchContract, cids, sizes);
+    
+    // Process file uploads
+    const results: UploadResult[] = [];
+    
+    for (let i = 0; i < filesWithMetadata.length; i++) {
+      const { file, metadata, cid } = filesWithMetadata[i];
+      
+      // Handle encryption (actual encryption)
+      let uploadFile = file;
+      if (options.encrypt && options.encrypt.length > 0) {
+        const encrypted = await this.encrypt(file, options.encrypt);
+        uploadFile = new File([encrypted.encryptedData], file.name + '.enc', {
+          type: 'application/octet-stream',
+        });
+      }
 
       // Upload file using the batch authorization
       await this.uploadToIPFS(uploadFile, batchContract.i, metadata?.onProgress || options.onProgress, {
@@ -302,17 +336,6 @@ export class SPKFileUpload {
         url: `https://ipfs.dlux.io/ipfs/${cid}`,
       });
     }
-
-    // Update the contract with batch metadata
-    batchContract.metadata = batchMetadata;
-    // Convert metadata array to object keyed by CID for authorization
-    const metadataObj: any = {};
-    batchMetadata.forEach((meta: any, index: number) => {
-      if (cids[index]) {
-        metadataObj[cids[index]] = meta;
-      }
-    });
-    batchContract.m = metadataObj; // Set m as object for authorization
 
     return {
       results,
@@ -460,7 +483,7 @@ export class SPKFileUpload {
       },
       body: JSON.stringify({
         files: contract.files,
-        meta: contract.m || {}
+        meta: contract.m || ''  // Send metadata string for consistency
       })
     });
 
@@ -491,7 +514,7 @@ export class SPKFileUpload {
       },
       body: JSON.stringify({
         files: contract.files,
-        meta: encodeURI(JSON.stringify(contract.m || {})) // Encode meta like dlux-iov
+        meta: contract.m || '' // Send the metadata string directly
       })
     });
 
