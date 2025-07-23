@@ -501,6 +501,9 @@ export class SPKFileUpload {
   private async authorizeBatchUpload(contract: any, cids: string[], sizes: number[]): Promise<any> {
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     
+    console.log('authorizeBatchUpload - contract.m:', contract.m);
+    console.log('authorizeBatchUpload - contract.files:', contract.files);
+    
     // Use the first CID for authorization (like dlux-iov does)
     const response = await fetch(`${apiUrl}/upload-authorize`, {
       method: 'POST',
@@ -896,37 +899,19 @@ export class SPKFileUpload {
     batchContract.df = cids;
     batchContract.fosig = authHeaders.signature;
     
-    // Get batch authorization
-    await this.authorizeBatchUpload(batchContract, cids, sizes);
+    // Prepare batch metadata BEFORE authorization (like browser version)
+    const encoder = new BatchMetadataEncoder();
+    const filesForEncoder: any[] = [];
     
-    // Prepare batch metadata
-    const batchMetadata: any[] = [];
-    const results: UploadResult[] = [];
-    
-    // Process each file
+    // Process metadata for each file first
     for (let i = 0; i < filesWithMetadata.length; i++) {
       const { file, metadata, cid } = filesWithMetadata[i];
       
-      // Convert metadata
-      const spkMetadata = metadata ? this.convertToSPKMetadata(metadata) : {};
+      // Get file extension
+      const nameParts = file.name.split('.');
+      const ext = nameParts.length > 1 ? nameParts.pop()! : 'unk';
+      const nameWithoutExt = nameParts.join('.');
       
-      // Handle encryption
-      let uploadFile = file;
-      let encryptionMetadata: { encrypted?: boolean; recipients?: string[] } = {};
-      if (options.encrypt && options.encrypt.length > 0) {
-        const encrypted = await this.encryptNode(file, options.encrypt);
-        uploadFile = {
-          name: file.name + '.enc',
-          size: encrypted.encryptedData.length,
-          type: 'application/octet-stream',
-          buffer: Buffer.from(encrypted.encryptedData)
-        };
-        encryptionMetadata = {
-          encrypted: true,
-          recipients: options.encrypt,
-        };
-      }
-
       // Handle thumbnail
       let thumbnailCid = metadata?.thumbnail;
       const fileType = file.type || 'application/octet-stream';
@@ -935,13 +920,47 @@ export class SPKFileUpload {
         thumbnailCid = generatedThumb || undefined;
       }
 
-      // Add file metadata to batch
-      batchMetadata.push({
+      // Prepare file data for encoder
+      filesForEncoder.push({
         cid: cid!,
-        ...spkMetadata,
+        name: nameWithoutExt,
+        ext: ext,
+        path: metadata?.path || '/',  // Default to root if no path
         thumb: thumbnailCid,
-        ...encryptionMetadata
+        metadata: metadata ? new SPKFileMetadata(this.convertToSPKMetadata(metadata)) : undefined
       });
+    }
+    
+    // Create the compact metadata string
+    const metadataString = encoder.encode(filesForEncoder, {
+      encrypt: options.encrypt
+    });
+    
+    // Set metadata string on contract BEFORE authorization
+    batchContract.m = metadataString;
+    
+    console.log('Generated metadata string (Node.js):', metadataString);
+    
+    // Get batch authorization with metadata
+    await this.authorizeBatchUpload(batchContract, cids, sizes);
+    
+    // Process file uploads
+    const results: UploadResult[] = [];
+    
+    for (let i = 0; i < filesWithMetadata.length; i++) {
+      const { file, metadata, cid } = filesWithMetadata[i];
+      
+      // Handle encryption (actual encryption)
+      let uploadFile = file;
+      if (options.encrypt && options.encrypt.length > 0) {
+        const encrypted = await this.encryptNode(file, options.encrypt);
+        uploadFile = {
+          name: file.name + '.enc',
+          size: encrypted.encryptedData.length,
+          type: 'application/octet-stream',
+          buffer: Buffer.from(encrypted.encryptedData)
+        };
+      }
 
       // Upload file using the batch authorization
       const fileProgress = metadata?.onProgress || options.onProgress;
