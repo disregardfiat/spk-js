@@ -1058,6 +1058,16 @@ export class SPKFileUpload {
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     const chunkSize = chunkBuffer.length;
     
+    const contentRange = `bytes ${start}-${start + chunkSize - 1}/${totalSize}`;
+    console.log('Upload chunk details:', {
+      fileName: chunkName,
+      start,
+      chunkSize,
+      totalSize,
+      contentRange,
+      isFullFile: start === 0 && chunkSize === totalSize
+    });
+    
     // Get form headers (includes boundary)
     const headers = {
       ...form.getHeaders(),
@@ -1065,7 +1075,7 @@ export class SPKFileUpload {
       'X-Contract': contract.i,
       'X-Sig': contract.fosig,
       'X-Account': contract.t,
-      'Content-Range': `bytes ${start}-${start + chunkSize - 1}/${totalSize}`
+      'Content-Range': contentRange
     };
     
     try {
