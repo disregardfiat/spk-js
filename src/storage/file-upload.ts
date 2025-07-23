@@ -989,12 +989,13 @@ export class SPKFileUpload {
       throw new Error('Invalid file: must be a Buffer or have buffer/arrayBuffer property');
     }
 
-    // Server seems to use default settings, so let's match that
-    const cidDefault = await Hash.of(buffer);
-    console.log(`[SPK-JS NODE] Generated CID: ${cidDefault}`);
+    // Server uses ipfs-only-hash with default settings
+    const cid = await Hash.of(buffer);
+    console.log(`[SPK-JS NODE] Generated CID: ${cid}`);
     console.log(`  - Buffer length: ${buffer.length}`);
-    console.log(`  - First 20 bytes:`, buffer.slice(0, 20));
-    return cidDefault;
+    console.log(`  - Buffer type: ${buffer.constructor.name}`);
+    console.log(`  - First 20 bytes:`, Array.from(buffer.slice(0, 20)));
+    return cid;
   }
 
   /**
@@ -1077,13 +1078,12 @@ export class SPKFileUpload {
     
     // Get chunk buffer
     const chunkBuffer = chunk.buffer || chunk;
-    const chunkName = chunk.name || 'chunk.dat';
     
     // Debug: Log the buffer we're about to send
-    console.log(`[SPK-JS NODE] Uploading chunk, buffer length: ${chunkBuffer.length}, first 20 bytes:`, chunkBuffer.slice(0, 20));
+    console.log(`[SPK-JS NODE] Uploading chunk, buffer length: ${chunkBuffer.length}`);
     
-    // Append chunk to match dlux-iov format
-    // The server expects the field name to be 'chunk'
+    // Append chunk directly as buffer
+    // The key is to NOT specify a filename which would add Content-Disposition headers
     form.append('chunk', chunkBuffer);
     
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
