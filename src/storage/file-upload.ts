@@ -1082,9 +1082,21 @@ export class SPKFileUpload {
     // Debug: Log the buffer we're about to send
     console.log(`[SPK-JS NODE] Uploading chunk, buffer length: ${chunkBuffer.length}`);
     
-    // Append chunk directly as buffer
+    // Additional debug info for binary integrity
+    const crypto = require('crypto');
+    const sha256 = crypto.createHash('sha256').update(chunkBuffer).digest('hex');
+    console.log(`[SPK-JS NODE] Chunk details:`);
+    console.log(`  - Is Buffer: ${Buffer.isBuffer(chunkBuffer)}`);
+    console.log(`  - First 32 bytes (hex): ${chunkBuffer.slice(0, 32).toString('hex')}`);
+    console.log(`  - SHA256: ${sha256}`);
+    
+    // Append chunk directly as buffer with explicit binary content type
     // The key is to NOT specify a filename which would add Content-Disposition headers
-    form.append('chunk', chunkBuffer);
+    // CRITICAL: Specify content-type to ensure binary handling
+    form.append('chunk', chunkBuffer, {
+      contentType: 'application/octet-stream',
+      knownLength: chunkBuffer.length
+    });
     
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     const chunkSize = chunkBuffer.length;
