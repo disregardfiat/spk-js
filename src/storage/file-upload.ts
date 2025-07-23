@@ -1049,10 +1049,19 @@ export class SPKFileUpload {
           size: chunkBuffer.length
         };
 
-        await this.uploadNodeChunk(chunk, contract, authData, start, fileSize, (chunkProgress) => {
-          const totalProgress = ((uploaded + (chunkProgress * chunkBuffer.length) / 100) / fileSize) * 100;
-          onProgress?.(Math.round(totalProgress));
-        }, cid);
+        try {
+          await this.uploadNodeChunk(chunk, contract, authData, start, fileSize, (chunkProgress) => {
+            const totalProgress = ((uploaded + (chunkProgress * chunkBuffer.length) / 100) / fileSize) * 100;
+            onProgress?.(Math.round(totalProgress));
+          }, cid);
+        } catch (error: any) {
+          // If it's a resume error and the chunk was skipped, continue
+          if (error.message && error.message.includes('Chunk already uploaded')) {
+            console.log(`[SPK-JS] Chunk ${i} already uploaded, continuing...`);
+          } else {
+            throw error;
+          }
+        }
 
         uploaded += chunkBuffer.length;
       }
@@ -1069,7 +1078,8 @@ export class SPKFileUpload {
     start: number,
     totalSize: number,
     onProgress?: (percent: number) => void,
-    cid?: string
+    cid?: string,
+    retryCount: number = 0
   ): Promise<void> {
     const fetch = require('node-fetch');
     const FormData = require('form-data');
@@ -1124,6 +1134,53 @@ export class SPKFileUpload {
       
       if (!response.ok) {
         const errorText = await response.text();
+        
+        // Check for resume conflict (409)
+        if (response.status === 409 && retryCount === 0) {
+          try {
+            const resumeInfo = JSON.parse(errorText);
+            console.log(`[SPK-JS NODE] Resume required:`, resumeInfo);
+            
+            // Calculate the adjusted chunk
+            const newStart = resumeInfo.expectedStartByte;
+            const originalEnd = start + chunkBuffer.length;
+            
+            if (newStart >= originalEnd) {
+              // This chunk is already uploaded, skip it
+              console.log(`[SPK-JS NODE] Chunk already uploaded, skipping`);
+              return;
+            }
+            
+            if (newStart > start) {
+              // Need to adjust the chunk to start from where the server left off
+              const skipBytes = newStart - start;
+              const adjustedBuffer = chunkBuffer.slice(skipBytes);
+              console.log(`[SPK-JS NODE] Adjusting chunk: skipping ${skipBytes} bytes, sending ${adjustedBuffer.length} bytes from position ${newStart}`);
+              
+              // Create adjusted chunk
+              const adjustedChunk = {
+                ...chunk,
+                buffer: adjustedBuffer,
+                size: adjustedBuffer.length
+              };
+              
+              // Retry with adjusted chunk
+              return this.uploadNodeChunk(
+                adjustedChunk,
+                contract,
+                authData,
+                newStart,
+                totalSize,
+                onProgress,
+                cid,
+                retryCount + 1
+              );
+            }
+          } catch (parseErr) {
+            console.error('Failed to parse resume info:', parseErr);
+          }
+        }
+        
         throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
       
