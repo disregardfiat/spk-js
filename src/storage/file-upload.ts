@@ -513,8 +513,8 @@ export class SPKFileUpload {
       const xhr = new XMLHttpRequest();
       const formData = new FormData();
       
-      // Add chunk to form data
-      formData.append('chunk', chunk, 'chunk.dat');
+      // Add chunk to form data without filename to match dlux-iov format
+      formData.append('chunk', chunk);
 
       xhr.upload.addEventListener('progress', (e) => {
         if (e.lengthComputable && onProgress) {
@@ -1067,7 +1067,11 @@ export class SPKFileUpload {
     const chunkName = chunk.name || 'chunk.dat';
     
     // Append chunk without filename to match dlux-iov format
-    form.append('chunk', chunkBuffer);
+    // In Node.js form-data, we need to explicitly set options to avoid filename
+    form.append('chunk', chunkBuffer, {
+      filename: '',
+      contentType: 'application/octet-stream'
+    });
     
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     const chunkSize = chunkBuffer.length;
