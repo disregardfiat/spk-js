@@ -1127,8 +1127,14 @@ export class SPKFileUpload {
         throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
       
-      // Report progress
-      if (onProgress) {
+      // Parse response to check progress
+      const responseData = await response.json();
+      console.log(`[SPK-JS NODE] Chunk upload response:`, responseData);
+      
+      // Report progress based on server response
+      if (onProgress && responseData.percentComplete) {
+        onProgress(responseData.percentComplete);
+      } else if (onProgress) {
         onProgress(100);
       }
     } catch (error: any) {
