@@ -305,7 +305,14 @@ export class SPKFileUpload {
 
     // Update the contract with batch metadata
     batchContract.metadata = batchMetadata;
-    batchContract.m = batchMetadata; // Also set m for authorization
+    // Convert metadata array to object keyed by CID for authorization
+    const metadataObj: any = {};
+    batchMetadata.forEach((meta: any, index: number) => {
+      if (cids[index]) {
+        metadataObj[cids[index]] = meta;
+      }
+    });
+    batchContract.m = metadataObj; // Set m as object for authorization
 
     return {
       results,
@@ -928,7 +935,14 @@ export class SPKFileUpload {
 
     // Update the contract with batch metadata
     batchContract.metadata = batchMetadata;
-    batchContract.m = batchMetadata; // Also set m for authorization
+    // Convert metadata array to object keyed by CID for authorization
+    const metadataObj: any = {};
+    batchMetadata.forEach((meta: any, index: number) => {
+      if (cids[index]) {
+        metadataObj[cids[index]] = meta;
+      }
+    });
+    batchContract.m = metadataObj; // Set m as object for authorization
 
     return {
       results,
@@ -1052,10 +1066,8 @@ export class SPKFileUpload {
     const chunkBuffer = chunk.buffer || chunk;
     const chunkName = chunk.name || 'chunk.dat';
     
-    form.append('chunk', chunkBuffer, {
-      filename: chunkName,
-      contentType: chunk.type || 'application/octet-stream'
-    });
+    // Append chunk without filename to match dlux-iov format
+    form.append('chunk', chunkBuffer);
     
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
     const chunkSize = chunkBuffer.length;
