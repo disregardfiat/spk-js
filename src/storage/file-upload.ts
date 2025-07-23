@@ -962,16 +962,7 @@ export class SPKFileUpload {
       });
     }
 
-    // Update the contract with batch metadata
-    batchContract.metadata = batchMetadata;
-    // Convert metadata array to object keyed by CID for authorization
-    const metadataObj: any = {};
-    batchMetadata.forEach((meta: any, index: number) => {
-      if (cids[index]) {
-        metadataObj[cids[index]] = meta;
-      }
-    });
-    batchContract.m = metadataObj; // Set m as object for authorization
+    // Keep the metadata string that was already set - don't overwrite it!
 
     return {
       results,
