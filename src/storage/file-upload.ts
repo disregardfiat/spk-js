@@ -364,7 +364,15 @@ export class SPKFileUpload {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    return Hash.of(buffer, { unixfs: 'UnixFS' });
+    // Try both CID versions to see which one matches
+    const cidV0 = await Hash.of(buffer, { cidVersion: 0 });
+    const cidV1 = await Hash.of(buffer, { cidVersion: 1 });
+    console.log(`[SPK-JS] Generated CID for ${file.name}:`);
+    console.log(`  - CID v0: ${cidV0}`);
+    console.log(`  - CID v1: ${cidV1}`);
+    console.log(`  - Buffer length: ${buffer.length}`);
+    // Default to v0 which is what IPFS traditionally uses for files
+    return cidV0;
   }
 
   
@@ -983,7 +991,15 @@ export class SPKFileUpload {
       throw new Error('Invalid file: must be a Buffer or have buffer/arrayBuffer property');
     }
 
-    return Hash.of(buffer, { unixfs: 'UnixFS' });
+    // Try both CID versions to see which one matches
+    const cidV0 = await Hash.of(buffer, { cidVersion: 0 });
+    const cidV1 = await Hash.of(buffer, { cidVersion: 1 });
+    console.log(`[SPK-JS NODE] Generated CID for file:`);
+    console.log(`  - CID v0: ${cidV0}`);
+    console.log(`  - CID v1: ${cidV1}`);
+    console.log(`  - Buffer length: ${buffer.length}`);
+    // Default to v0 which is what IPFS traditionally uses for files
+    return cidV0;
   }
 
   /**
