@@ -487,6 +487,45 @@ Options:
 - `powerUp(amount)`: Stake LARYNX tokens
 - `powerDown(amount)`: Unstake LARYNX tokens
 
+#### Storage Node Operations
+- `registerNode(ipfsId, domain, bidRate)`: Register as a storage node
+- `getNodeStatus()`: Check node registration status
+- `storeFiles(contractIds)`: Store files on the network (become a storage provider)
+- `removeFiles(contractIds)`: Remove files from storage (stop being a provider)
+- `getStoredContracts()`: Get contracts being stored by this node
+- `getAvailableContracts(limit)`: Find under-replicated contracts to store
+- `extendContract(contractId, fileOwner, brocaAmount, power)`: Extend a storage contract
+- `calculateStorageEarnings(contract, bidRate)`: Calculate potential earnings
+- `batchStore(contractIds, chunkSize)`: Batch store multiple contracts efficiently
+- `registerAuthority(pubKey)`: Register a public key authority
+
+### Storage Node Example
+
+```javascript
+// Register as a storage node
+const nodeReg = await spk.registerNode(
+  'QmYourIPFSNodeId',        // From `ipfs id`
+  'https://your-node.com',   // Your public URL
+  500                        // Bid rate
+);
+
+// Find and store available contracts
+const available = await spk.getAvailableContracts(10);
+const contractIds = available.slice(0, 3).map(c => c.id);
+const storeResult = await spk.storeFiles(contractIds);
+
+// Check what you're storing
+const stored = await spk.getStoredContracts();
+console.log(`Storing ${stored.length} contracts`);
+
+// Calculate earnings
+const earnings = spk.calculateStorageEarnings({
+  size: 1024 * 1024,     // 1MB
+  providers: 3,          // 3 storage nodes
+  duration: 28800 * 30   // 30 days in blocks
+});
+```
+
 ## Development
 
 ### Setup
@@ -521,6 +560,7 @@ See the [examples](./examples) directory for complete examples:
 - [React Integration](./examples/react-example)
 - [Vue 3 Integration](./examples/vue-example)
 - [Node.js Usage](./examples/node-example)
+- [Storage Node Operations](./examples/storage-node-operations.js)
 
 ## Contributing
 

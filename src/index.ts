@@ -8,6 +8,8 @@ import { ProtocolManager } from './core/protocol';
 import { TokenOperations } from './tokens/operations';
 import { FileSystem } from './filesystem';
 import { HoneygraphClient, UserAPI, FileSearchAPI, StorageAPI, MarketAPI, NetworkAPI, GovernanceAPI } from './api';
+import { NodeOperations } from './storage/node-operations';
+import { DirectUpload, DirectUploadOptions, DirectUploadResult } from './storage/direct-upload';
 
 export * from './core/account';
 export * from './core/api';
@@ -63,7 +65,7 @@ export type {
   UserContract,
   StoringContract,
   UserService,
-  Delegation,
+  UserDelegation,
   NodeMarket,
   DexOrder,
   UserFile,
@@ -95,6 +97,8 @@ export default class SPK {
   public market: MarketAPI;
   public network: NetworkAPI;
   public governance: GovernanceAPI;
+  public nodeOps: NodeOperations;
+  private directUpload: DirectUpload;
 
   constructor(username: string, options: Partial<SPKConfig> = {}) {
     this.account = new SPKAccount(username, options);
@@ -129,6 +133,20 @@ export default class SPK {
     this.filesystem = new FileSystem(this.account.api, {
       baseUrl: honeygraphUrl
     });
+    
+    // Initialize NodeOperations for storage node management
+    this.nodeOps = new NodeOperations(
+      this.account, 
+      this.account.api,
+      this.account.keychainAdapter
+    );
+    
+    // Initialize DirectUpload for bypassing normal upload pipeline
+    this.directUpload = new DirectUpload(
+      this.account,
+      this.account.api,
+      this.account.keychainAdapter
+    );
     
     // Set global SPK instance for contract creator
     (global as any).currentSPKInstance = this;
@@ -870,8 +888,148 @@ export default class SPK {
     const user = username || this.account.username;
     return this.governance.getVoterHistory(user);
   }
+
+  // ========== Storage Node Operations ==========
+
+  /**
+   * Register a public key authority
+   * @param pubKey - Public key (STM format, 53 characters)
+   */
+  async registerAuthority(pubKey: string): Promise<any> {
+    return this.nodeOps.registerAuthority(pubKey);
+  }
+
+  /**
+   * Store files on the network (become a storage provider)
+   * @param contractIds - Array of contract IDs to store
+   */
+  async storeFiles(contractIds: string[]): Promise<{
+    success: boolean;
+    stored: string[];
+    id: string;
+  }> {
+    return this.nodeOps.storeFiles(contractIds);
+  }
+
+  /**
+   * Remove files from storage (stop being a provider)
+   * @param contractIds - Array of contract IDs to stop storing
+   */
+  async removeFiles(contractIds: string[]): Promise<{
+    success: boolean;
+    removed: string[];
+    id: string;
+  }> {
+    return this.nodeOps.removeFiles(contractIds);
+  }
+
+  /**
+   * Extend a storage contract with BROCA
+   * @param contractId - Contract ID to extend
+   * @param fileOwner - Owner of the file/contract
+   * @param brocaAmount - Amount of BROCA to spend
+   * @param power - Power level (optional, default 0)
+   */
+  async extendContract(
+    contractId: string,
+    fileOwner: string,
+    brocaAmount: number,
+    power: number = 0
+  ): Promise<any> {
+    return this.nodeOps.extendContract(contractId, fileOwner, brocaAmount, power);
+  }
+
+  /**
+   * Get node registration status
+   */
+  async getNodeStatus(): Promise<any> {
+    return this.nodeOps.getNodeStatus();
+  }
+
+  /**
+   * Get contracts being stored by this node
+   */
+  async getStoredContracts(): Promise<any[]> {
+    return this.nodeOps.getStoredContracts();
+  }
+
+  /**
+   * Get available contracts to store (under-replicated)
+   */
+  async getAvailableContracts(limit: number = 100): Promise<any[]> {
+    return this.nodeOps.getAvailableContracts(limit);
+  }
+
+  /**
+   * Batch store multiple contracts efficiently
+   */
+  async batchStore(contractIds: string[], chunkSize?: number): Promise<any> {
+    return this.nodeOps.batchStore(contractIds, chunkSize);
+  }
+
+  /**
+   * Calculate potential earnings for storing a contract
+   */
+  calculateStorageEarnings(contract: {
+    size: number;
+    providers: number;
+    duration: number;
+  }, bidRate?: number): any {
+    return this.nodeOps.calculateEarnings(contract, bidRate);
+  }
+
+  // ========== Direct Upload Operations ==========
+
+  /**
+   * Direct upload files to the network, bypassing normal upload pipeline
+   * @param options - Upload options including CIDs and sizes
+   */
+  async directUploadFiles(options: DirectUploadOptions): Promise<DirectUploadResult> {
+    return this.directUpload.upload(options);
+  }
+
+  /**
+   * Batch direct upload multiple file sets
+   * @param uploads - Array of upload options
+   */
+  async batchDirectUpload(uploads: DirectUploadOptions[]): Promise<DirectUploadResult[]> {
+    return this.directUpload.batchUpload(uploads);
+  }
+
+  /**
+   * Check if files already exist on network
+   * @param cids - Array of IPFS CIDs to check
+   */
+  async checkExistingFiles(cids: string[]): Promise<Map<string, boolean>> {
+    return this.directUpload.checkExistingFiles(cids);
+  }
+
+  /**
+   * Calculate BROCA cost for direct upload
+   * @param sizes - Array of file sizes in bytes
+   */
+  calculateDirectUploadCost(sizes: number[]): number {
+    return this.directUpload.calculateCost(sizes);
+  }
+
+  /**
+   * Create metadata string for direct upload
+   * @param fileCount - Number of files
+   * @param tags - Optional tags (max 8)
+   */
+  static createDirectUploadMetadata(fileCount: number, tags: number[] = []): string {
+    return DirectUpload.createMetadata(fileCount, tags);
+  }
 }
 
 // Export the new storage provider selector and contract creator
 export { StorageProviderSelector } from './storage/provider-selector';
 export { SPKContractCreator } from './storage/contract-creator';
+
+// Export storage node operations types
+export { 
+  NodeOperations,
+  StorageContract,
+  NodeStatus,
+  ExtendResult
+} from './storage/node-operations';

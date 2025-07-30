@@ -8,7 +8,7 @@ export type {
   UserContract, 
   StoringContract, 
   UserService, 
-  Delegation, 
+  Delegation as UserDelegation, 
   NodeMarket, 
   DexOrder, 
   UserFile, 
@@ -77,7 +77,7 @@ export type {
   GovernanceStats,
   ParameterChange,
   VoterHistory,
-  Delegation,
+  Delegation as GovernanceDelegation,
   DelegationInfo,
   UpcomingProposal
 } from './governance';
