@@ -43,6 +43,9 @@ const mockCrypto = {
 // Set up global crypto
 (global as any).crypto = mockCrypto;
 
+// Set up globalThis crypto (priority in crypto getter)
+(globalThis as any).crypto = mockCrypto;
+
 // Also set up window crypto for browser-like environment
 if (typeof window !== 'undefined') {
   (window as any).crypto = mockCrypto;

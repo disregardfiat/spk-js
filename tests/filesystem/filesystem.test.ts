@@ -1,12 +1,12 @@
 import { FileSystem } from '../../src/filesystem';
-import { Api } from '../../src/core/api';
+import { SPKAPI } from '../../src/core/api';
 
 describe('FileSystem', () => {
   let filesystem: FileSystem;
-  let mockApi: jest.Mocked<Api>;
+  let mockApi: jest.Mocked<SPKAPI>;
 
   beforeEach(() => {
-    mockApi = {} as jest.Mocked<Api>;
+    mockApi = {} as jest.Mocked<SPKAPI>;
     filesystem = new FileSystem(mockApi);
   });
 

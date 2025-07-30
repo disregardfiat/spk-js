@@ -98,7 +98,7 @@ export default class SPK {
   public network: NetworkAPI;
   public governance: GovernanceAPI;
   public nodeOps: NodeOperations;
-  private directUpload: DirectUpload;
+  private directUploadService: DirectUpload;
 
   constructor(username: string, options: Partial<SPKConfig> = {}) {
     this.account = new SPKAccount(username, options);
@@ -142,7 +142,7 @@ export default class SPK {
     );
     
     // Initialize DirectUpload for bypassing normal upload pipeline
-    this.directUpload = new DirectUpload(
+    this.directUploadService = new DirectUpload(
       this.account,
       this.account.api,
       this.account.keychainAdapter
@@ -985,7 +985,7 @@ export default class SPK {
    * @param options - Upload options including CIDs and sizes
    */
   async directUploadFiles(options: DirectUploadOptions): Promise<DirectUploadResult> {
-    return this.directUpload.upload(options);
+    return this.directUploadService.upload(options);
   }
 
   /**
@@ -993,7 +993,7 @@ export default class SPK {
    * @param uploads - Array of upload options
    */
   async batchDirectUpload(uploads: DirectUploadOptions[]): Promise<DirectUploadResult[]> {
-    return this.directUpload.batchUpload(uploads);
+    return this.directUploadService.batchUpload(uploads);
   }
 
   /**
@@ -1001,7 +1001,7 @@ export default class SPK {
    * @param cids - Array of IPFS CIDs to check
    */
   async checkExistingFiles(cids: string[]): Promise<Map<string, boolean>> {
-    return this.directUpload.checkExistingFiles(cids);
+    return this.directUploadService.checkExistingFiles(cids);
   }
 
   /**
@@ -1009,7 +1009,7 @@ export default class SPK {
    * @param sizes - Array of file sizes in bytes
    */
   calculateDirectUploadCost(sizes: number[]): number {
-    return this.directUpload.calculateCost(sizes);
+    return this.directUploadService.calculateCost(sizes);
   }
 
   /**

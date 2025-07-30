@@ -155,6 +155,19 @@ describe('File Encryption Integration', () => {
         }
       );
       
+      // Mock Hive API call for memo keys
+      (global.fetch as jest.Mock).mockImplementationOnce(() =>
+        Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            result: [
+              { name: 'alice', memo_key: 'STM7mockMemoKeyForAlice123' },
+              { name: 'bob', memo_key: 'STM7mockMemoKeyForBob456' }
+            ]
+          })
+        })
+      );
+      
       // Mock contract creation
       (global.fetch as jest.Mock).mockImplementationOnce(() => 
         Promise.resolve({
