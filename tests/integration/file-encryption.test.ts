@@ -255,6 +255,7 @@ describe('File Encryption Integration', () => {
       
       // Mock that Bob's account doesn't exist
       // Override HiveAPI mock for this test
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { HiveAPI } = require('../../src/api');
       HiveAPI.getAccounts.mockImplementationOnce((accounts: string[]) => {
         // Filter out bob from the results

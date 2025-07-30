@@ -1180,7 +1180,9 @@ export class SPKFileUpload {
     cid?: string,
     retryCount: number = 0
   ): Promise<void> {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fetch = require('node-fetch');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const FormData = require('form-data');
     
     const form = new FormData();
@@ -1192,6 +1194,7 @@ export class SPKFileUpload {
     console.log(`[SPK-JS NODE] Uploading chunk, buffer length: ${chunkBuffer.length}`);
     
     // Additional debug info for binary integrity
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const crypto = require('crypto');
     const sha256 = crypto.createHash('sha256').update(chunkBuffer).digest('hex');
     console.log(`[SPK-JS NODE] Chunk details:`);

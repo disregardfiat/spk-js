@@ -41,6 +41,7 @@ jest.mock('../../../src/storage/contract-creator', () => ({
 
 // Mock node-fetch for Node.js environment
 jest.mock('node-fetch', () => jest.fn());
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const fetch = require('node-fetch');
 
 // Mock form-data for Node.js environment

@@ -5,6 +5,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { KeyManager } from '../../../src/crypto/key-management';
 
 // Set up crypto for node environment
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { webcrypto } = require('crypto');
 global.crypto = webcrypto as any;
 (globalThis as any).crypto = webcrypto;

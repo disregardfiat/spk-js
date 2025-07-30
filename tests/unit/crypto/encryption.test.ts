@@ -72,6 +72,7 @@ const mockCrypto = {
 // Try to use node's webcrypto if available, otherwise use mock
 let crypto: any;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { webcrypto } = require('crypto');
   crypto = webcrypto;
 } catch {

@@ -53,6 +53,7 @@ describe('SPKContractCreator', () => {
 
       // Mock broadcast success
       mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
+        // eslint-disable-next-line @typescript-eslint/ban-types
         (_username: string, _ops: any, _key: string, callback: Function) => {
           callback({
             success: true,
@@ -112,6 +113,7 @@ describe('SPKContractCreator', () => {
       });
 
       mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
+        // eslint-disable-next-line @typescript-eslint/ban-types
         (_username: string, _ops: any, _key: string, callback: Function) => {
           callback({ success: true, result: { id: 'tx123' } });
         }
@@ -174,6 +176,7 @@ describe('SPKContractCreator', () => {
       });
 
       mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
+        // eslint-disable-next-line @typescript-eslint/ban-types
         (_username: string, _ops: any, _key: string, callback: Function) => {
           callback({ success: false, error: 'Transaction failed' });
         }
@@ -309,6 +312,7 @@ describe('SPKContractCreator', () => {
       // Mock both broadcasts
       let callCount = 0;
       mockSPK.keychainAdapter.requestBroadcast.mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/ban-types
         (_username: string, _ops: any, _key: string, callback: Function) => {
           callCount++;
           callback({
