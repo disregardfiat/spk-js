@@ -7,6 +7,7 @@ import { SPKDrive } from './drive';
 import { ProtocolManager } from './core/protocol';
 import { TokenOperations } from './tokens/operations';
 import { FileSystem } from './filesystem';
+import { HoneygraphClient, UserAPI, FileSearchAPI, StorageAPI, MarketAPI, NetworkAPI, GovernanceAPI } from './api';
 
 export * from './core/account';
 export * from './core/api';
@@ -47,6 +48,35 @@ export * from './ui/icons';
 // Export filesystem functionality
 export * from './filesystem';
 
+// Export Honeygraph APIs - be selective to avoid conflicts
+export { 
+  HoneygraphClient, 
+  UserAPI, 
+  FileSearchAPI,
+  HiveAPI
+} from './api';
+export type {
+  HoneygraphOptions,
+  UserProfileOptions,
+  FileSearchOptions as HoneygraphFileSearchOptions,
+  UserBalances,
+  UserContract,
+  StoringContract,
+  UserService,
+  Delegation,
+  NodeMarket,
+  DexOrder,
+  UserFile,
+  UserFilesOptions,
+  UserSummary,
+  FileSearchResult,
+  FileProvider,
+  FileProvidersResult,
+  FileMetadata as HoneygraphFileMetadata,
+  FileStats,
+  SimilarFile
+} from './api';
+
 /**
  * Main SPK Network interface
  */
@@ -58,6 +88,13 @@ export default class SPK {
   private protocol: ProtocolManager;
   private tokens: TokenOperations;
   public filesystem: FileSystem;
+  public honeygraph: HoneygraphClient;
+  public users: UserAPI;
+  public files: FileSearchAPI;
+  public storage: StorageAPI;
+  public market: MarketAPI;
+  public network: NetworkAPI;
+  public governance: GovernanceAPI;
 
   constructor(username: string, options: Partial<SPKConfig> = {}) {
     this.account = new SPKAccount(username, options);
@@ -71,8 +108,26 @@ export default class SPK {
       this.account.api,
       this.protocol
     );
+    
+    // Initialize Honeygraph with configurable baseUrl
+    const honeygraphUrl = options.honeygraphUrl || 'https://honeygraph.dlux.io';
+    this.honeygraph = new HoneygraphClient({ 
+      baseUrl: honeygraphUrl,
+      enableCache: options.enableHoneygraphCache ?? true,
+      cacheTTL: options.honeygraphCacheTTL ?? 60000 // 1 minute default
+    });
+    
+    // Initialize API modules
+    this.users = new UserAPI(this.honeygraph);
+    this.files = new FileSearchAPI(this.honeygraph);
+    this.storage = new StorageAPI(this.honeygraph);
+    this.market = new MarketAPI(this.honeygraph);
+    this.network = new NetworkAPI(this.honeygraph);
+    this.governance = new GovernanceAPI(this.honeygraph);
+    
+    // Keep filesystem for backward compatibility
     this.filesystem = new FileSystem(this.account.api, {
-      baseUrl: 'https://honeygraph.dlux.io'
+      baseUrl: honeygraphUrl
     });
     
     // Set global SPK instance for contract creator
@@ -565,6 +620,255 @@ export default class SPK {
     
     // If it's a single UploadResult (shouldn't happen with array input)
     return [result];
+  }
+
+  // ========== Honeygraph API Convenience Methods ==========
+
+  /**
+   * Get enhanced user profile from Honeygraph
+   */
+  async getUserProfile(username?: string, options?: any): Promise<any> {
+    const targetUser = username || this.account.username;
+    return this.users.getUserProfile(targetUser, options);
+  }
+
+  /**
+   * Get user balances from Honeygraph (more accurate than SPK node)
+   */
+  async getEnhancedBalances(username?: string): Promise<any> {
+    const targetUser = username || this.account.username;
+    return this.users.getUserBalances(targetUser);
+  }
+
+  /**
+   * Search files across the network
+   */
+  async searchFiles(options: any): Promise<any[]> {
+    return this.files.searchFiles(options);
+  }
+
+  /**
+   * Get files by tags
+   */
+  async getFilesByTags(tags: string[], logic: 'AND' | 'OR' = 'OR'): Promise<any[]> {
+    return this.files.searchByTags(tags, logic);
+  }
+
+  /**
+   * Get storage providers for a file
+   */
+  async getFileStorageProviders(cid: string): Promise<any> {
+    return this.files.getFileProviders(cid);
+  }
+
+  /**
+   * Get recently uploaded files
+   */
+  async getRecentFiles(limit: number = 50): Promise<any[]> {
+    return this.files.getRecentUploads(limit);
+  }
+
+  /**
+   * Get user's contracts from Honeygraph
+   */
+  async getUserContracts(username?: string): Promise<any> {
+    const targetUser = username || this.account.username;
+    return this.users.getUserContracts(targetUser);
+  }
+
+  /**
+   * Get market depth for a trading pair
+   */
+  async getMarketDepth(pair: string, depth?: number): Promise<any> {
+    return this.honeygraph.getMarketDepth(pair, depth);
+  }
+
+  /**
+   * Get rich list for a token
+   */
+  async getRichList(token: 'larynx' | 'spk' | 'power', limit?: number): Promise<any> {
+    return this.honeygraph.getRichList(token, limit);
+  }
+
+  /**
+   * Get network topology
+   */
+  async getNetworkTopology(): Promise<any> {
+    return this.honeygraph.getNetworkTopology();
+  }
+
+  /**
+   * Get storage network statistics
+   */
+  async getStorageNetworkStats(): Promise<any> {
+    return this.honeygraph.getStorageStats();
+  }
+
+  // ========== Storage API Convenience Methods ==========
+
+  /**
+   * Find understored contracts that need storage nodes
+   */
+  async findStorageOpportunities(filters?: any): Promise<any[]> {
+    return this.storage.findStorageOpportunities(filters);
+  }
+
+  /**
+   * Get storage node statistics
+   */
+  async getStorageNodeStats(nodeId?: string): Promise<any> {
+    const node = nodeId || this.account.username;
+    return this.storage.getNodeStats(node);
+  }
+
+  /**
+   * Get expiring contracts
+   */
+  async getExpiringContracts(days: number = 7): Promise<any[]> {
+    return this.storage.getExpiringContracts(days);
+  }
+
+  /**
+   * Calculate storage ROI
+   */
+  async calculateStorageROI(storageCapacity: number, bidRate: number): Promise<any> {
+    return this.storage.calculateStorageROI({ storageCapacity, bidRate });
+  }
+
+  // ========== Market API Convenience Methods ==========
+
+  /**
+   * Get user's open orders
+   */
+  async getUserOrders(username?: string, status: 'OPEN' | 'ALL' = 'OPEN'): Promise<any[]> {
+    const user = username || this.account.username;
+    return this.market.getUserOrders(user, status);
+  }
+
+  /**
+   * Get recent trades for a pair
+   */
+  async getRecentTrades(pair: string, limit: number = 50): Promise<any[]> {
+    return this.market.getRecentTrades(pair, limit);
+  }
+
+  /**
+   * Get OHLCV candlestick data
+   */
+  async getMarketCandles(pair: string, interval: string = '1h', options?: any): Promise<any[]> {
+    return this.market.getOHLCV(pair, interval as any, options);
+  }
+
+  /**
+   * Get liquidity pool information
+   */
+  async getLiquidityPools(pair?: string): Promise<any[]> {
+    return this.market.getLiquidityPools(pair);
+  }
+
+  /**
+   * Find arbitrage opportunities
+   */
+  async findArbitrageOpportunities(minProfit: number = 1): Promise<any[]> {
+    return this.market.getArbitrageOpportunities(minProfit);
+  }
+
+  /**
+   * Calculate trade slippage
+   */
+  async calculateSlippage(pair: string, amount: number, side: 'BUY' | 'SELL'): Promise<any> {
+    return this.market.calculateSlippage(pair, amount, side);
+  }
+
+  // ========== Network API Convenience Methods ==========
+
+  /**
+   * Get network health status
+   */
+  async getNetworkHealth(): Promise<any> {
+    return this.network.getNetworkHealth();
+  }
+
+  /**
+   * Get service health for a specific type
+   */
+  async getServiceHealth(serviceType: string): Promise<any> {
+    return this.network.getServiceHealth(serviceType);
+  }
+
+  /**
+   * Get node information
+   */
+  async getNodeInfo(nodeId?: string): Promise<any> {
+    const node = nodeId || this.account.username;
+    return this.network.getNodeInfo(node);
+  }
+
+  /**
+   * Get network activity
+   */
+  async getNetworkActivity(hours: number = 24): Promise<any> {
+    return this.network.getNetworkActivity(hours);
+  }
+
+  /**
+   * Get service pricing comparison
+   */
+  async getServicePricing(serviceType: string): Promise<any> {
+    return this.network.getServicePricing(serviceType);
+  }
+
+  /**
+   * Get node rankings
+   */
+  async getNodeRankings(metric?: string, limit?: number): Promise<any[]> {
+    return this.network.getNodeRankings(metric as any, limit);
+  }
+
+  // ========== Governance API Convenience Methods ==========
+
+  /**
+   * Get active governance proposals
+   */
+  async getActiveProposals(): Promise<any[]> {
+    return this.governance.getProposals('active');
+  }
+
+  /**
+   * Get voting power for a user
+   */
+  async getVotingPower(username?: string): Promise<any> {
+    const user = username || this.account.username;
+    return this.governance.getVotingPower(user);
+  }
+
+  /**
+   * Get proposal details
+   */
+  async getProposal(proposalId: string): Promise<any> {
+    return this.governance.getProposalDetails(proposalId);
+  }
+
+  /**
+   * Get governance statistics
+   */
+  async getGovernanceStats(): Promise<any> {
+    return this.governance.getGovernanceStats();
+  }
+
+  /**
+   * Get upcoming votes
+   */
+  async getUpcomingVotes(days: number = 7): Promise<any[]> {
+    return this.governance.getUpcomingVotes(days);
+  }
+
+  /**
+   * Get voter history
+   */
+  async getVoterHistory(username?: string): Promise<any> {
+    const user = username || this.account.username;
+    return this.governance.getVoterHistory(user);
   }
 }
 

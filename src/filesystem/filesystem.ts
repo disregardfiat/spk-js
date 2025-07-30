@@ -1,18 +1,15 @@
-import { SPKAPI } from '../core/api';
 import { 
   FileSystemEntry, 
   DirectoryListing, 
   FileAccess, 
-  SharedFile,
   FileSystemOptions 
 } from './types';
 
 export class FileSystem {
-  private api: SPKAPI;
   private options: FileSystemOptions;
 
-  constructor(api: SPKAPI, options?: FileSystemOptions) {
-    this.api = api;
+  constructor(_api: any, options?: FileSystemOptions) {
+    // api parameter kept for backward compatibility but not used
     this.options = {
       baseUrl: options?.baseUrl || 'https://honeygraph.dlux.io',
       gateway: options?.gateway || 'https://ipfs.dlux.io',

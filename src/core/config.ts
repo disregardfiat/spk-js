@@ -7,6 +7,9 @@ export interface SPKConfig {
   keychain?: any;
   timeout?: number;
   maxRetries?: number;
+  honeygraphUrl?: string;
+  enableHoneygraphCache?: boolean;
+  honeygraphCacheTTL?: number;
 }
 
 export const DEFAULT_CONFIG: SPKConfig = {
