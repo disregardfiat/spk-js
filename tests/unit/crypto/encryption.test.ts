@@ -8,7 +8,7 @@ import { KeyManager } from '../../../src/crypto/key-management';
 // Mock the HiveAPI
 jest.mock('../../../src/api', () => ({
   HiveAPI: {
-    getAccounts: jest.fn().mockImplementation((accounts: any) => {
+    getAccounts: jest.fn().mockImplementation((accounts: string[]) => {
       const accountArray = accounts as string[];
       return Promise.resolve(accountArray.map(name => ({
         name,
@@ -21,7 +21,7 @@ jest.mock('../../../src/api', () => ({
 // Mock the wallet encryption
 jest.mock('../../../src/wallet/encryption', () => ({
   walletEncryption: {
-    encryptForMultipleRecipients: jest.fn().mockImplementation(async (_account: any, recipients: any, message: any) => {
+    encryptForMultipleRecipients: jest.fn().mockImplementation(async (_account: string, recipients: string[], message: string) => {
       const recipientArray = recipients as string[];
       return recipientArray.map((recipient: string) => ({
         account: recipient,
@@ -47,19 +47,19 @@ const mockCrypto = {
       usages: ['encrypt', 'decrypt'],
       _id: Math.random() // Add unique identifier for testing
     })),
-    encrypt: jest.fn().mockImplementation(async (_algorithm: any, _key: any, data: any) => {
+    encrypt: jest.fn().mockImplementation(async (_algorithm: AlgorithmIdentifier, _key: CryptoKey, data: ArrayBuffer) => {
       const dataBuffer = data as ArrayBuffer;
       const encrypted = new ArrayBuffer(dataBuffer.byteLength + 16);
       new Uint8Array(encrypted).set(new Uint8Array(dataBuffer));
       return encrypted;
     }),
-    decrypt: jest.fn().mockImplementation(async (_algorithm: any, _key: any, data: any) => {
+    decrypt: jest.fn().mockImplementation(async (_algorithm: AlgorithmIdentifier, _key: CryptoKey, data: ArrayBuffer) => {
       const dataBuffer = data as ArrayBuffer;
       const decrypted = new ArrayBuffer(dataBuffer.byteLength - 16);
       new Uint8Array(decrypted).set(new Uint8Array(dataBuffer).slice(0, -16));
       return decrypted;
     }),
-    exportKey: jest.fn().mockImplementation(async (_format: any, key: any) => {
+    exportKey: jest.fn().mockImplementation(async (_format: KeyFormat, key: CryptoKey & { _id?: number }) => {
       const mockKey = new ArrayBuffer(32);
       // Use the key's unique ID to generate different exports
       const fillValue = key._id ? Math.floor(key._id * 255) : 42;
@@ -70,7 +70,7 @@ const mockCrypto = {
 };
 
 // Always use mock crypto in tests
-let crypto: any = mockCrypto;
+const crypto = mockCrypto;
 
 // Set up global crypto
 global.crypto = crypto as any;
