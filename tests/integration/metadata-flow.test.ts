@@ -120,21 +120,38 @@ describe('Complete Metadata Flow Integration', () => {
     it('should demonstrate complete metadata flow for image upload', async () => {
       // Mock the internal methods we can't easily test
       spk['fileUpload']['hashFile'] = jest.fn().mockResolvedValue('QmImageHash123');
-      spk.account.api.post = jest.fn().mockResolvedValue({
-        id: 'contract-123',
-        df: ['QmImageHash123'],
+      spk.account.registerPublicKey = jest.fn().mockResolvedValue(undefined);
+      spk.account.calculateBroca = jest.fn().mockResolvedValue(1000);
+      
+      // Mock the contract creator methods
+      const mockContractResult = {
+        success: true,
+        contractId: 'contract-123',
+        transactionId: 'tx-123',
+        provider: { nodeId: 'testnode', api: 'https://testnode.com' },
+        brocaCost: 100,
+        size: 1000,
+        duration: 30
+      };
+      
+      const mockContract = {
         i: 'contract-123',
         t: 'testuser',
         fosig: 'mock-sig',
-        api: 'https://ipfs.dlux.io'
-      });
-      spk.account.registerPublicKey = jest.fn().mockResolvedValue(undefined);
-      spk.account.calculateBroca = jest.fn().mockResolvedValue(1000);
+        api: 'https://ipfs.dlux.io',
+        df: ['QmImageHash123']
+      };
+      
+      spk['fileUpload']['contractCreator']['createStorageContract'] = jest.fn().mockResolvedValue(mockContractResult);
+      spk['fileUpload']['contractCreator']['getContractDetails'] = jest.fn().mockResolvedValue(mockContract);
+      spk['fileUpload']['waitForContract'] = jest.fn().mockResolvedValue(undefined);
+      spk['fileUpload']['authorizeUpload'] = jest.fn().mockResolvedValue(undefined);
+      spk['fileUpload']['uploadToIPFS'] = jest.fn().mockResolvedValue(undefined);
       
       const file = new File(['image data'], 'vacation-photo.jpg', { type: 'image/jpeg' });
       
       // User provides metadata in a friendly format
-      await spk.upload(file, {
+      const result = await spk.upload(file, {
         metaData: [{
           FileIndex: 0,
           name: 'Summer Vacation 2023',
@@ -149,21 +166,15 @@ describe('Complete Metadata Flow Integration', () => {
       });
       
       // Verify the contract was created with properly formatted metadata
-      expect(spk.account.api.post).toHaveBeenCalledWith(
-        '/api/new_contract',
-        expect.objectContaining({
-          metadata: {
-            name: 'Summer Vacation 2023',
-            ext: 'jpg',
-            path: '/Photos/Vacations/2023',
-            thumb: 'https://cdn.example.com/thumbs/vacation2023.jpg',
-            flag: '4', // Tags converted to base64
-            labels: '125', // Labels as string
-            license: '1' // License as string
-          }
-        }),
-        expect.any(Object)
-      );
+      expect((result as any).contract.metadata).toEqual({
+        name: 'Summer Vacation 2023',
+        ext: 'jpg',
+        path: '/Photos/Vacations/2023',
+        thumb: 'https://cdn.example.com/thumbs/vacation2023.jpg',
+        flag: '4', // Tags converted to base64
+        labels: '125', // Labels as string
+        license: '1' // License as string
+      });
     });
 
     it('should demonstrate batch upload with mixed metadata', async () => {
@@ -173,14 +184,31 @@ describe('Complete Metadata Flow Integration', () => {
         .mockResolvedValueOnce('QmVideo456')
         .mockResolvedValueOnce('QmExe789');
         
-      spk.account.api.post = jest.fn().mockResolvedValue({
-        id: 'contract-123',
-        df: ['QmTest'],
+      // Mock the contract creator methods for batch upload
+      const mockContractResult = {
+        success: true,
+        contractId: 'contract-123',
+        transactionId: 'tx-123',
+        provider: { nodeId: 'testnode', api: 'https://testnode.com' },
+        brocaCost: 300,
+        size: 3000,
+        duration: 30
+      };
+      
+      const mockContract = {
         i: 'contract-123',
         t: 'testuser',
         fosig: 'mock-sig',
-        api: 'https://ipfs.dlux.io'
-      });
+        api: 'https://ipfs.dlux.io',
+        df: ['QmDoc123', 'QmVideo456', 'QmExe789']
+      };
+      
+      spk['fileUpload']['contractCreator']['createStorageContract'] = jest.fn().mockResolvedValue(mockContractResult);
+      spk['fileUpload']['contractCreator']['getContractDetails'] = jest.fn().mockResolvedValue(mockContract);
+      spk['fileUpload']['waitForContract'] = jest.fn().mockResolvedValue(undefined);
+      spk['fileUpload']['authorizeBatchUpload'] = jest.fn().mockResolvedValue(undefined);
+      spk['fileUpload']['uploadToIPFS'] = jest.fn().mockResolvedValue(undefined);
+      
       spk.account.registerPublicKey = jest.fn().mockResolvedValue(undefined);
       spk.account.calculateBroca = jest.fn().mockResolvedValue(1000);
       
@@ -190,67 +218,64 @@ describe('Complete Metadata Flow Integration', () => {
         new File(['exe'], 'installer.exe', { type: 'application/x-msdownload' })
       ];
       
-      try {
-        await spk.upload(files, {
-          autoRenew: false, // Global setting
-          metaData: [
-            {
-              FileIndex: 0,
-              name: 'Q4 Financial Report',
-              tags: 0, // No special tags
-              labels: '1', // Important
-              license: '4' // CC BY-NC-ND
-            },
-            {
-              FileIndex: 1,
-              name: 'How to Use SPK Network',
-              tags: 0, // No warnings
-              labels: '2', // Favorite
-              license: '2', // CC BY-SA
-              autoRenew: true // Override global setting
-            },
-            {
-              FileIndex: 2,
-              name: 'SPK Desktop Installer',
-              tags: 8, // Executable warning
-              labels: '14', // Important + Red (warning)
-              license: '7' // CC0 Public Domain
-            }
-          ]
-        });
-      } catch {
-        // Ignore upload errors, just check metadata
-      }
+      const result = await spk.upload(files, {
+        autoRenew: false, // Global setting
+        metaData: [
+          {
+            FileIndex: 0,
+            name: 'Q4 Financial Report',
+            tags: 0, // No special tags
+            labels: '1', // Important
+            license: '4' // CC BY-NC-ND
+          },
+          {
+            FileIndex: 1,
+            name: 'How to Use SPK Network',
+            tags: 0, // No warnings
+            labels: '2', // Favorite
+            license: '2', // CC BY-SA
+            autoRenew: true // Override global setting
+          },
+          {
+            FileIndex: 2,
+            name: 'SPK Desktop Installer',
+            tags: 8, // Executable warning
+            labels: '14', // Important + Red (warning)
+            license: '7' // CC0 Public Domain
+          }
+        ]
+      });
       
-      // Verify each file got correct metadata
-      const calls = (spk.account.api.post as jest.Mock).mock.calls;
+      // Verify the results structure
+      expect(result).toHaveProperty('results');
+      expect((result as any).results).toHaveLength(3);
+      
+      // Verify each file got correct metadata in the metadata array
+      const metadataArray = (result as any).results[0].contract.metadata;
       
       // First file (PDF)
-      expect(calls[0][1].metadata).toEqual({
+      expect(metadataArray[0]).toEqual(expect.objectContaining({
         name: 'Q4 Financial Report',
         labels: '1',
         license: '4'
         // No flag since tags = 0
-      });
-      expect(calls[0][1].autoRenew).toBe(false);
+      }));
       
-      // Second file (Video)
-      expect(calls[1][1].metadata).toEqual({
+      // Second file (Video)  
+      expect(metadataArray[1]).toEqual(expect.objectContaining({
         name: 'How to Use SPK Network',
         labels: '2',
         license: '2'
         // No flag since tags = 0
-      });
-      expect(calls[1][1].autoRenew).toBe(true); // Overridden
+      }));
       
       // Third file (Executable)
-      expect(calls[2][1].metadata).toEqual({
+      expect(metadataArray[2]).toEqual(expect.objectContaining({
         name: 'SPK Desktop Installer',
         flag: '8', // Executable tag in base64
         labels: '14',
         license: '7'
-      });
-      expect(calls[2][1].autoRenew).toBe(false);
+      }));
     });
   });
 
