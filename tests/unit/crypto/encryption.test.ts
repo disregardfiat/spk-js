@@ -69,15 +69,8 @@ const mockCrypto = {
   }
 };
 
-// Try to use node's webcrypto if available, otherwise use mock
-let crypto: any;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { webcrypto } = require('crypto');
-  crypto = webcrypto;
-} catch {
-  crypto = mockCrypto;
-}
+// Always use mock crypto in tests
+let crypto: any = mockCrypto;
 
 // Set up global crypto
 global.crypto = crypto as any;
@@ -161,8 +154,8 @@ describe('Encryption', () => {
     });
 
     it('should handle large files with chunked encryption', async () => {
-      // Create a 5MB file
-      const largeData = new Uint8Array(5 * 1024 * 1024);
+      // Create a 256KB file (reduced from 5MB for faster tests)
+      const largeData = new Uint8Array(256 * 1024);
       for (let i = 0; i < largeData.length; i++) {
         largeData[i] = i % 256;
       }

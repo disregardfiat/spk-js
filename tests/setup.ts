@@ -22,6 +22,10 @@ const mockCrypto = {
     }),
     decrypt: jest.fn().mockImplementation(async (_algorithm: any, _key: any, data: any) => {
       const dataBuffer = data as ArrayBuffer;
+      // For testing, we need to ensure we have data to return
+      if (dataBuffer.byteLength <= 16) {
+        return new ArrayBuffer(0);
+      }
       const decrypted = new ArrayBuffer(dataBuffer.byteLength - 16);
       new Uint8Array(decrypted).set(new Uint8Array(dataBuffer).slice(0, -16));
       return decrypted;
@@ -71,13 +75,22 @@ if (typeof File === 'undefined') {
       this.type = options?.type || '';
       
       // Convert content to ArrayBuffer
-      if (content[0] instanceof ArrayBuffer) {
-        this.content = content[0];
-      } else if (typeof content[0] === 'string') {
-        const encoder = new TextEncoder();
-        this.content = encoder.encode(content[0]).buffer;
-      } else {
+      if (content.length === 0) {
         this.content = new ArrayBuffer(0);
+      } else {
+        const first = content[0];
+        if (first instanceof ArrayBuffer) {
+          this.content = first;
+        } else if (first instanceof Uint8Array) {
+          this.content = first.buffer.slice(first.byteOffset, first.byteOffset + first.byteLength);
+        } else if (typeof first === 'string') {
+          const encoder = new TextEncoder();
+          this.content = encoder.encode(first).buffer;
+        } else {
+          // Handle other array-like types
+          const encoder = new TextEncoder();
+          this.content = encoder.encode(String(first)).buffer;
+        }
       }
       
       this.size = this.content.byteLength;
@@ -105,13 +118,22 @@ if (typeof Blob === 'undefined') {
       this.type = options?.type || '';
       
       // Convert content to ArrayBuffer
-      if (content[0] instanceof ArrayBuffer) {
-        this.content = content[0];
-      } else if (typeof content[0] === 'string') {
-        const encoder = new TextEncoder();
-        this.content = encoder.encode(content[0]).buffer;
-      } else {
+      if (content.length === 0) {
         this.content = new ArrayBuffer(0);
+      } else {
+        const first = content[0];
+        if (first instanceof ArrayBuffer) {
+          this.content = first;
+        } else if (first instanceof Uint8Array) {
+          this.content = first.buffer.slice(first.byteOffset, first.byteOffset + first.byteLength);
+        } else if (typeof first === 'string') {
+          const encoder = new TextEncoder();
+          this.content = encoder.encode(first).buffer;
+        } else {
+          // Handle other array-like types
+          const encoder = new TextEncoder();
+          this.content = encoder.encode(String(first)).buffer;
+        }
       }
       
       this.size = this.content.byteLength;
