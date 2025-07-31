@@ -62,6 +62,7 @@ describe('File Encryption Integration', () => {
     
     // Add TextEncoder/TextDecoder polyfills if missing  
     if (typeof TextEncoder === 'undefined') {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { TextEncoder, TextDecoder } = require('util');
       (global as any).TextEncoder = TextEncoder;
       (global as any).TextDecoder = TextDecoder;
