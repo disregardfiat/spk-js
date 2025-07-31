@@ -79,12 +79,12 @@ jobs:
         echo "" >> RELEASE_NOTES.md
         echo "### NPM" >> RELEASE_NOTES.md
         echo '```bash' >> RELEASE_NOTES.md
-        echo "npm install @spknetwork/spk-js@${VERSION}" >> RELEASE_NOTES.md
+        echo "npm install @disregardfiat/spk-js@${VERSION}" >> RELEASE_NOTES.md
         echo '```' >> RELEASE_NOTES.md
         echo "" >> RELEASE_NOTES.md
         echo "### CDN" >> RELEASE_NOTES.md
         echo '```html' >> RELEASE_NOTES.md
-        echo "<script src=\"https://unpkg.com/@spknetwork/spk-js@${VERSION}/dist/spk-js.min.js\"></script>" >> RELEASE_NOTES.md
+        echo "<script src=\"https://unpkg.com/@disregardfiat/spk-js@${VERSION}/dist/spk-js.min.js\"></script>" >> RELEASE_NOTES.md
         echo '```' >> RELEASE_NOTES.md
         echo "" >> RELEASE_NOTES.md
         echo "## Bundle Files" >> RELEASE_NOTES.md
@@ -164,7 +164,7 @@ jobs:
         echo "# Release Summary for ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Published Packages" >> $GITHUB_STEP_SUMMARY
-        echo "- NPM: [@spknetwork/spk-js@${{ github.ref_name }}](https://www.npmjs.com/package/@spknetwork/spk-js/v/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+        echo "- NPM: [@disregardfiat/spk-js@${{ github.ref_name }}](https://www.npmjs.com/package/@disregardfiat/spk-js/v/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
         echo "- GitHub Release: [View Release](https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         cat RELEASE_NOTES.md >> $GITHUB_STEP_SUMMARY

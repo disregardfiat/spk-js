@@ -125,22 +125,22 @@ jobs:
         echo "# NPM Publish Summary" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Published Package" >> $GITHUB_STEP_SUMMARY
-        echo "- **Package**: @spknetwork/spk-js" >> $GITHUB_STEP_SUMMARY
+        echo "- **Package**: @disregardfiat/spk-js" >> $GITHUB_STEP_SUMMARY
         echo "- **Version**: ${{ steps.version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Tag**: ${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **NPM URL**: [View on NPM](https://www.npmjs.com/package/@spknetwork/spk-js/v/${{ steps.version.outputs.new_version }})" >> $GITHUB_STEP_SUMMARY
+        echo "- **NPM URL**: [View on NPM](https://www.npmjs.com/package/@disregardfiat/spk-js/v/${{ steps.version.outputs.new_version }})" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Installation" >> $GITHUB_STEP_SUMMARY
         echo '```bash' >> $GITHUB_STEP_SUMMARY
         if [ "${{ inputs.tag }}" = "latest" ]; then
-          echo "npm install @spknetwork/spk-js" >> $GITHUB_STEP_SUMMARY
+          echo "npm install @disregardfiat/spk-js" >> $GITHUB_STEP_SUMMARY
         else
-          echo "npm install @spknetwork/spk-js@${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "npm install @disregardfiat/spk-js@${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
         fi
         echo '```' >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "## Next Steps" >> $GITHUB_STEP_SUMMARY
-        echo "- Check the package on [npmjs.com](https://www.npmjs.com/package/@spknetwork/spk-js)" >> $GITHUB_STEP_SUMMARY
+        echo "- Check the package on [npmjs.com](https://www.npmjs.com/package/@disregardfiat/spk-js)" >> $GITHUB_STEP_SUMMARY
         echo "- Test installation in a new project" >> $GITHUB_STEP_SUMMARY
         echo "- Update documentation if needed" >> $GITHUB_STEP_SUMMARY
     

@@ -15,19 +15,28 @@ JavaScript library for interacting with SPK Network decentralized storage.
 
 ## Installation
 
-Place the library in your package.json
-```json
-"@spknetwork/spk-js": "github:disregardfiat/spk-js#main",
-```
-run `npm install`
+### NPM
 
-Or via CDN:
-`soon`
+```bash
+npm install @disregardfiat/spk-js
+```
+
+### CDN
+
+```html
+<script src="https://unpkg.com/@disregardfiat/spk-js@latest/dist/spk-js.min.js"></script>
+```
+
+### Specific Version
+
+```bash
+npm install @disregardfiat/spk-js@1.0.0-alpha
+```
 
 ## Quick Start
 
 ```javascript
-import SPK from '@spknetwork/spk-js';
+import SPK from '@disregardfiat/spk-js';
 
 // Initialize with Hive account
 const spk = new SPK('username');
@@ -188,7 +197,7 @@ const result = await spk.upload(file, {
 #### Manual Encryption (Advanced)
 
 ```javascript
-import { Encryption, KeyManager } from '@spknetwork/spk-js';
+import { Encryption, KeyManager } from '@disregardfiat/spk-js';
 
 // Initialize encryption
 const keyManager = new KeyManager();
@@ -212,7 +221,7 @@ const wrappedKeys = await encryption.wrapKeyForRecipients(aesKey, recipients);
 SPK-JS integrates with Hive Keychain for memo encryption:
 
 ```javascript
-import { walletEncryption } from '@spknetwork/spk-js';
+import { walletEncryption } from '@disregardfiat/spk-js';
 
 // Check if Hive Keychain is available
 if (walletEncryption.isKeychainAvailable()) {
@@ -278,7 +287,7 @@ When Hive Keychain is available (`window.hive_keychain`), it provides:
 Encrypted file metadata can be stored on-chain in a compact format:
 
 ```javascript
-import { Encryption } from '@spknetwork/spk-js';
+import { Encryption } from '@disregardfiat/spk-js';
 
 // Generate compact metadata string
 const metadataString = Encryption.generateMetadataString(metadata);
@@ -351,7 +360,7 @@ SPK Network supports rich metadata for uploaded files including tags, labels, an
 Tags are content warnings and file type indicators stored as bitwise flags:
 
 ```javascript
-import { SPKFileMetadata, TAGS } from '@spknetwork/spk-js';
+import { SPKFileMetadata, TAGS } from '@disregardfiat/spk-js';
 
 // Create metadata with tags
 const metadata = new SPKFileMetadata({
