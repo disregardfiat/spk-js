@@ -11,8 +11,26 @@ describe('SPKContractCreator', () => {
     mockSPK = {
       username: 'testuser',
       calculateBroca: jest.fn().mockResolvedValue(1000),
+      refresh: jest.fn().mockResolvedValue(undefined),
+      channels: {},
+      file_contracts: {},
+      api: {
+        get: jest.fn().mockResolvedValue({
+          channels: {
+            testuser: {
+              'contract1': {
+                i: 'testuser_123_abc',
+                r: 100,
+                a: 0,
+                b: 'bestnode'
+              }
+            }
+          }
+        })
+      },
       keychainAdapter: {
-        requestBroadcast: jest.fn()
+        requestBroadcast: jest.fn(),
+        broadcast: jest.fn()
       }
     };
 
@@ -52,15 +70,10 @@ describe('SPKContractCreator', () => {
       selectBestProviderSpy.mockResolvedValueOnce(mockProvider);
 
       // Mock broadcast success
-      mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
-        // eslint-disable-next-line @typescript-eslint/ban-types
-        (_username: string, _ops: any, _key: string, callback: Function) => {
-          callback({
-            success: true,
-            result: { id: 'abc123' }
-          });
-        }
-      );
+      mockSPK.keychainAdapter.broadcast.mockResolvedValueOnce({
+        success: true,
+        id: 'abc123'
+      });
 
       const result = await creator.createStorageContract(102400, {
         duration: 30
@@ -82,7 +95,7 @@ describe('SPKContractCreator', () => {
       expect(result.contractId).toMatch(/testuser_\d+_[a-z0-9]+/);
 
       // Verify broadcast was called with correct params
-      const broadcastCall = mockSPK.keychainAdapter.requestBroadcast.mock.calls[0];
+      const broadcastCall = mockSPK.keychainAdapter.broadcast.mock.calls[0];
       const customJson = broadcastCall[1][0][1];
       const jsonData = JSON.parse(customJson.json);
 
@@ -112,12 +125,7 @@ describe('SPKContractCreator', () => {
         stats: {}
       });
 
-      mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
-        // eslint-disable-next-line @typescript-eslint/ban-types
-        (_username: string, _ops: any, _key: string, callback: Function) => {
-          callback({ success: true, result: { id: 'tx123' } });
-        }
-      );
+      mockSPK.keychainAdapter.broadcast.mockResolvedValueOnce({ success: true, id: 'tx123' });
 
       await creator.createStorageContract(100000, {
         beneficiary: {
@@ -126,8 +134,9 @@ describe('SPKContractCreator', () => {
         }
       });
 
-      const broadcastCall = mockSPK.keychainAdapter.requestBroadcast.mock.calls[0];
-      const jsonData = JSON.parse(broadcastCall[1][0][1].json);
+      const broadcastCall = mockSPK.keychainAdapter.broadcast.mock.calls[0];
+      const customJson = broadcastCall[1][0][1];
+      const jsonData = JSON.parse(customJson.json);
 
       expect(jsonData.contract).toBe('1');
       expect(jsonData.slots).toBe('alice,10');
@@ -175,12 +184,7 @@ describe('SPKContractCreator', () => {
         stats: {}
       });
 
-      mockSPK.keychainAdapter.requestBroadcast.mockImplementationOnce(
-        // eslint-disable-next-line @typescript-eslint/ban-types
-        (_username: string, _ops: any, _key: string, callback: Function) => {
-          callback({ success: false, error: 'Transaction failed' });
-        }
-      );
+      mockSPK.keychainAdapter.broadcast.mockRejectedValueOnce(new Error('Transaction failed'));
 
       await expect(creator.createStorageContract(100000))
         .rejects.toThrow('Transaction failed');
@@ -310,17 +314,9 @@ describe('SPKContractCreator', () => {
       });
 
       // Mock both broadcasts
-      let callCount = 0;
-      mockSPK.keychainAdapter.requestBroadcast.mockImplementation(
-        // eslint-disable-next-line @typescript-eslint/ban-types
-        (_username: string, _ops: any, _key: string, callback: Function) => {
-          callCount++;
-          callback({
-            success: true,
-            result: { id: callCount === 1 ? 'tx1' : 'tx2' }
-          });
-        }
-      );
+      mockSPK.keychainAdapter.broadcast
+        .mockResolvedValueOnce({ success: true, id: 'tx1' })
+        .mockResolvedValueOnce({ success: true, id: 'tx2' });
 
       const result = await creator.createDirectUploadContract(files, {
         metadata: { title: 'Test upload' }
@@ -336,8 +332,9 @@ describe('SPKContractCreator', () => {
       });
 
       // Verify second broadcast for direct upload
-      const secondCall = mockSPK.keychainAdapter.requestBroadcast.mock.calls[1];
-      const directUploadJson = JSON.parse(secondCall[1][0][1].json);
+      const secondCall = mockSPK.keychainAdapter.broadcast.mock.calls[1];
+      const customJson = secondCall[1][0][1];
+      const directUploadJson = JSON.parse(customJson.json);
 
       expect(directUploadJson).toMatchObject({
         op: 'direct_upload',

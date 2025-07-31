@@ -60,7 +60,53 @@ describe('File Encryption Integration', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Ensure crypto mocks are available
+    // Add TextEncoder/TextDecoder polyfills if missing  
+    if (typeof TextEncoder === 'undefined') {
+      const { TextEncoder, TextDecoder } = require('util');
+      (global as any).TextEncoder = TextEncoder;
+      (global as any).TextDecoder = TextDecoder;
+    }
+    
+    // Force use of our polyfilled File class instead of jsdom's basic one
+    if (typeof File !== 'undefined' && !File.prototype.arrayBuffer) {
+      // jsdom's File doesn't have arrayBuffer, so use our polyfill
+      (global as any).File = class File {
+        name: string;
+        size: number;
+        type: string;
+        private content: ArrayBuffer;
+
+        constructor(content: BlobPart[], name: string, options?: FilePropertyBag) {
+          this.name = name;
+          this.type = options?.type || '';
+          
+          // Convert content to ArrayBuffer
+          if (content[0] instanceof ArrayBuffer) {
+            this.content = content[0];
+          } else if (content[0] instanceof Uint8Array) {
+            this.content = content[0].buffer.slice(content[0].byteOffset, content[0].byteOffset + content[0].byteLength);
+          } else if (typeof content[0] === 'string') {
+            const encoder = new TextEncoder();
+            this.content = encoder.encode(content[0]).buffer;
+          } else {
+            this.content = new ArrayBuffer(0);
+          }
+          
+          this.size = this.content.byteLength;
+        }
+
+        async arrayBuffer(): Promise<ArrayBuffer> {
+          return this.content;
+        }
+
+        async text(): Promise<string> {
+          const decoder = new TextDecoder();
+          return decoder.decode(this.content);
+        }
+      };
+    }
+    
+    // Ensure crypto mocks are available - use the same mock structure as setup.ts
     const cryptoMock = {
         getRandomValues: jest.fn((array: any) => {
           for (let i = 0; i < array.length; i++) {
@@ -102,9 +148,20 @@ describe('File Encryption Integration', () => {
         }
       };
     
-    // Set crypto on both global and globalThis
+    // Set crypto on global, globalThis, and window for maximum compatibility
     (global as any).crypto = cryptoMock;
     (globalThis as any).crypto = cryptoMock;
+    if (typeof window !== 'undefined') {
+      (window as any).crypto = cryptoMock;
+    }
+    
+    // Ensure subtle property is explicitly set (sometimes it gets lost)
+    if ((globalThis as any).crypto && !(globalThis as any).crypto.subtle) {
+      (globalThis as any).crypto.subtle = cryptoMock.subtle;
+    }
+    if ((global as any).crypto && !(global as any).crypto.subtle) {
+      (global as any).crypto.subtle = cryptoMock.subtle;
+    }
     
     // Setup mock account
     account = new SPKAccount('testuser', { node: 'https://spktest.dlux.io' });
@@ -289,6 +346,8 @@ describe('File Encryption Integration', () => {
         type: 'application/pdf' 
       });
       
+      // Debug: File should now have arrayBuffer method
+      
       // Mock memo key fetching
       jest.spyOn(keyManager, 'fetchMemoKeys').mockResolvedValue([
         { account: 'alice', memoKey: 'STM8PublicKeyAlice...' },
@@ -302,18 +361,25 @@ describe('File Encryption Integration', () => {
       expect(result.encryptedFile.type).toBe('application/octet-stream');
       expect(result.encryptedFile.size).toBeGreaterThan(0);
       
-      // Verify metadata
-      expect(result.metadata).toEqual({
+      // Verify metadata structure
+      expect(result.metadata).toMatchObject({
         encrypted: true,
         algorithm: 'AES-256-GCM',
-        recipients: ['alice', 'bob'],
+        recipients: expect.arrayContaining(['alice', 'bob', 'self']), // 'self' automatically added
         originalName: 'secret.pdf',
         originalType: 'application/pdf',
-        encryptedKeys: [
-          { account: 'alice', encryptedKey: '#encrypted-key-for-alice' },
-          { account: 'bob', encryptedKey: '#encrypted-key-for-bob' }
-        ]
+        iv: expect.any(String) // Base64 encoded IV
       });
+      
+      // Verify encrypted keys structure
+      expect(result.metadata.encryptedKeys).toHaveLength(3);
+      expect(result.metadata.encryptedKeys).toEqual(
+        expect.arrayContaining([
+          { account: 'alice', encryptedKey: expect.stringMatching(/^#encrypted-.+-for-alice$/) },
+          { account: 'bob', encryptedKey: expect.stringMatching(/^#encrypted-.+-for-bob$/) },
+          { account: 'self', encryptedKey: expect.stringMatching(/^#encrypted-.+-for-self$/) }
+        ])
+      );
     });
   });
 

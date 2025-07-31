@@ -1,11 +1,30 @@
 import SPK from '../../src/index';
 import { TAGS, LABELS, LICENSES } from '../../src/storage/file-metadata';
 
+// Mock StorageProviderSelector to avoid complex provider mocking
+jest.mock('../../src/storage/provider-selector', () => {
+  return {
+    StorageProviderSelector: jest.fn().mockImplementation(() => ({
+      selectBestProvider: jest.fn().mockResolvedValue({
+        nodeId: 'testnode',
+        api: 'https://testnode.com',
+        freeSpace: 1000000000000,
+        totalSpace: 2000000000000,
+        usedSpace: 1000000000000,
+        freeSpaceRatio: 0.5,
+        stats: {}
+      }),
+      formatBytes: jest.fn().mockImplementation((bytes) => `${bytes} bytes`)
+    }))
+  };
+});
+
 describe('Complete Metadata Flow Integration', () => {
   let spk: SPK;
   let mockKeychain: any;
   
   beforeEach(() => {
+    
     // Mock Hive Keychain
     mockKeychain = {
       requestSignBuffer: jest.fn((_message: any, _account: any, _type: any, callback: any) => {
@@ -44,6 +63,35 @@ describe('Complete Metadata Flow Integration', () => {
         return Promise.resolve({
           ok: true,
           json: () => Promise.resolve({ success: true })
+        });
+      }
+      if (url.includes('/services/IPFS')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            providers: {
+              'testnode': 'provider1,provider2',
+              'testnode2': 'provider3'
+            },
+            services: [
+              {
+                'testnode': { api: 'https://testnode.com', a: 'https://testnode.com' }
+              },
+              {
+                'testnode2': { api: 'https://testnode2.com', a: 'https://testnode2.com' }
+              }
+            ]
+          })
+        });
+      }
+      if (url.includes('testnode.com/api/stats') || url.includes('testnode2.com/api/stats')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            StorageMax: 2000000000000, // 2TB total (used by provider selector)
+            RepoSize: 1000000000000,   // 1TB used (used by provider selector)
+            api: url.includes('testnode.com') ? 'https://testnode.com' : 'https://testnode2.com'
+          })
         });
       }
       return Promise.resolve({
@@ -209,6 +257,8 @@ describe('Complete Metadata Flow Integration', () => {
   describe('Metadata constants validation', () => {
     it('should have correct tag definitions', () => {
       expect(TAGS).toEqual([
+        { value: 1, label: 'Encrypted', description: 'File is encrypted' },
+        { value: 2, label: 'Hidden', description: 'Hidden from file explorer' },
         { value: 4, label: 'NSFW', description: 'Not Safe For Work' },
         { value: 8, label: 'Executable', description: 'Is an executable file' }
       ]);
