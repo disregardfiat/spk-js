@@ -8,7 +8,7 @@ import { KeyManager } from '../../../src/crypto/key-management';
 // Mock the HiveAPI
 jest.mock('../../../src/api', () => ({
   HiveAPI: {
-    getAccounts: jest.fn().mockImplementation((accounts: string[]) => {
+    getAccounts: jest.fn().mockImplementation((accounts) => {
       const accountArray = accounts as string[];
       return Promise.resolve(accountArray.map(name => ({
         name,
@@ -21,11 +21,12 @@ jest.mock('../../../src/api', () => ({
 // Mock the wallet encryption
 jest.mock('../../../src/wallet/encryption', () => ({
   walletEncryption: {
-    encryptForMultipleRecipients: jest.fn().mockImplementation(async (_account: string, recipients: string[], message: string) => {
+    encryptForMultipleRecipients: jest.fn().mockImplementation(async (_account, recipients, message) => {
       const recipientArray = recipients as string[];
+      const messageStr = message as string;
       return recipientArray.map((recipient: string) => ({
         account: recipient,
-        encryptedKey: `#encrypted-${message}-for-${recipient}`
+        encryptedKey: `#encrypted-${messageStr}-for-${recipient}`
       }));
     })
   }
@@ -47,22 +48,23 @@ const mockCrypto = {
       usages: ['encrypt', 'decrypt'],
       _id: Math.random() // Add unique identifier for testing
     })),
-    encrypt: jest.fn().mockImplementation(async (_algorithm: AlgorithmIdentifier, _key: CryptoKey, data: ArrayBuffer) => {
+    encrypt: jest.fn().mockImplementation(async (_algorithm, _key, data) => {
       const dataBuffer = data as ArrayBuffer;
       const encrypted = new ArrayBuffer(dataBuffer.byteLength + 16);
       new Uint8Array(encrypted).set(new Uint8Array(dataBuffer));
       return encrypted;
     }),
-    decrypt: jest.fn().mockImplementation(async (_algorithm: AlgorithmIdentifier, _key: CryptoKey, data: ArrayBuffer) => {
+    decrypt: jest.fn().mockImplementation(async (_algorithm, _key, data) => {
       const dataBuffer = data as ArrayBuffer;
       const decrypted = new ArrayBuffer(dataBuffer.byteLength - 16);
       new Uint8Array(decrypted).set(new Uint8Array(dataBuffer).slice(0, -16));
       return decrypted;
     }),
-    exportKey: jest.fn().mockImplementation(async (_format: KeyFormat, key: CryptoKey & { _id?: number }) => {
+    exportKey: jest.fn().mockImplementation(async (_format, key) => {
       const mockKey = new ArrayBuffer(32);
       // Use the key's unique ID to generate different exports
-      const fillValue = key._id ? Math.floor(key._id * 255) : 42;
+      const keyObj = key as any;
+      const fillValue = keyObj._id ? Math.floor(keyObj._id * 255) : 42;
       new Uint8Array(mockKey).fill(fillValue);
       return mockKey;
     })
@@ -111,8 +113,8 @@ describe('Encryption', () => {
       const exportedKey2 = await crypto.subtle.exportKey('raw', key2);
       
       // Convert to arrays for comparison
-      const array1 = new Uint8Array(exportedKey1);
-      const array2 = new Uint8Array(exportedKey2);
+      const array1 = new Uint8Array(exportedKey1 as ArrayBuffer);
+      const array2 = new Uint8Array(exportedKey2 as ArrayBuffer);
       
       // At least one byte should be different
       const isDifferent = array1.some((byte, index) => byte !== array2[index]);
