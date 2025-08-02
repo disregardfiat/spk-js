@@ -2,11 +2,11 @@
  * Example usage of SPK wallet methods
  */
 
-const SPK = require('@spknetwork/spk-js');
-const AccountManager = require('@spknetwork/spk-js/core/account/manager');
-const SPKClient = require('@spknetwork/spk-js/core/api/client');
-const walletCalculations = require('@spknetwork/spk-js/wallet/calculations');
-const precision = require('@spknetwork/spk-js/utils/precision');
+const SPK = require('@disregardfiat/spk-js');
+const AccountManager = require('@disregardfiat/spk-js/core/account/manager');
+const SPKClient = require('@disregardfiat/spk-js/core/api/client');
+const walletCalculations = require('@disregardfiat/spk-js/wallet/calculations');
+const precision = require('@disregardfiat/spk-js/utils/precision');
 
 async function example() {
   // Initialize SPK with username

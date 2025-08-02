@@ -5,7 +5,7 @@
  * to access enhanced SPK Network data.
  */
 
-import SPK from '@spknetwork/spk-js';
+import SPK from '@disregardfiat/spk-js';
 
 async function main() {
   // Initialize SPK with optional Honeygraph configuration

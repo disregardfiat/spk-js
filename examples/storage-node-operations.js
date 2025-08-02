@@ -1,4 +1,4 @@
-const SPK = require('@spknetwork/spk-js').default;
+const SPK = require('@disregardfiat/spk-js').default;
 
 async function storageNodeExample() {
   // Initialize SPK with your username
@@ -6,15 +6,14 @@ async function storageNodeExample() {
   await spk.init();
 
   try {
-    // 1. Register as a storage node (if not already registered)
-    // Note: You need to use registerNode from the main SPK instance
+    // 1. Register as a storage service (if not already registered)
     const ipfsId = 'QmYourIPFSNodeId'; // Get this from `ipfs id`
-    const domain = 'https://your-node.example.com';
-    const bidRate = 500; // Your bid rate in LARYNX
+    const domain = 'your-node.example.com'; // Optional domain for gateway services
+    const registrationFee = 2000; // Registration fee in LARYNX
     
-    console.log('Registering node...');
-    const nodeReg = await spk.registerNode(ipfsId, domain, bidRate);
-    console.log('Node registered:', nodeReg);
+    console.log('Registering storage service...');
+    const serviceReg = await spk.registerStorageService(ipfsId, domain, registrationFee);
+    console.log('Storage service registered:', serviceReg);
 
     // 2. Check node status
     const status = await spk.getNodeStatus();

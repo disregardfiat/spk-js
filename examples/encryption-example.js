@@ -2,8 +2,8 @@
  * Example: Client-side file encryption with SPK-JS
  */
 
-import SPK from '@spknetwork/spk-js';
-import { Encryption } from '@spknetwork/spk-js';
+import SPK from '@disregardfiat/spk-js';
+import { Encryption } from '@disregardfiat/spk-js';
 
 async function encryptAndUploadExample() {
   // Initialize SPK with your Hive account
@@ -55,7 +55,7 @@ async function encryptAndUploadExample() {
 
 // Example 4: Custom wallet integration
 async function customWalletExample() {
-  const { walletEncryption } = await import('@spknetwork/spk-js');
+  const { walletEncryption } = await import('@disregardfiat/spk-js');
   
   // For custom wallets that don't use Hive Keychain
   if (!walletEncryption.isKeychainAvailable()) {

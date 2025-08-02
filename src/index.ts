@@ -293,7 +293,7 @@ export default class SPK {
   }
 
   /**
-   * Register as SPK Network node
+   * Register as SPK Network node (blockchain validator)
    */
   async registerNode(
     ipfsId: string,
@@ -302,6 +302,52 @@ export default class SPK {
     decayMargin: number = 100
   ): Promise<any> {
     return this.tokens.registerNode(ipfsId, domain, bidRate, decayMargin);
+  }
+
+  /**
+   * Register storage service on SPK Network
+   */
+  async registerStorageService(
+    ipfsId: string,
+    domain?: string,
+    amount: number = 2000
+  ): Promise<any> {
+    if (!this.account.keychainAdapter || !this.account.keychainAdapter.isAvailable()) {
+      throw new Error('Keychain/Signer not available');
+    }
+
+    // Prepare service data matching old spk-client format
+    const serviceData: any = {
+      amount,
+      type: 'IPFS',
+      id: ipfsId
+    };
+
+    // Only add api field if domain is provided (gateway nodes)
+    if (domain && domain.trim()) {
+      serviceData.api = `https://ipfs.${domain}`;
+    }
+
+    const displayMessage = domain 
+      ? `Register storage service with domain ${domain} for ${amount} LARYNX`
+      : `Register P2P storage service for ${amount} LARYNX`;
+
+    try {
+      const result = await this.account.keychainAdapter.broadcastCustomJson(
+        this.account.username,
+        'spkccT_register_service',
+        'Active',
+        serviceData,
+        displayMessage
+      );
+
+      return {
+        id: result.id,
+        success: true
+      };
+    } catch (error: any) {
+      throw new Error(`Storage service registration failed: ${error.message}`);
+    }
   }
 
   /**

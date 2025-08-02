@@ -10,7 +10,7 @@ To use this component in your Vue project:
 
 1. Install spk-js and Vue:
 ```bash
-npm install @spknetwork/spk-js vue
+npm install @disregardfiat/spk-js vue
 ```
 
 2. Copy the SPKDriveVue.vue component to your project
@@ -28,7 +28,7 @@ npm install @spknetwork/spk-js vue
 </template>
 
 <script>
-import { SPKAccount } from '@spknetwork/spk-js';
+import { SPKAccount } from '@disregardfiat/spk-js';
 import SPKDriveVue from './components/SPKDriveVue.vue';
 
 export default {

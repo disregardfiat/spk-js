@@ -30,7 +30,7 @@ npm install @disregardfiat/spk-js
 ### Specific Version
 
 ```bash
-npm install @disregardfiat/spk-js@1.0.0-alpha
+npm install @disregardfiat/spk-js@1.0.0-alpha.1
 ```
 
 ## Quick Start
@@ -587,7 +587,7 @@ MIT License - see [LICENSE](./LICENSE) for details
 
 ## Links
 
-- [SPK Network](https://spknetwork.io)
-- [Documentation](https://docs.spknetwork.io)
-- [Discord](https://discord.gg/spknetwork)
-- [GitHub](https://github.com/spknetwork/spk-js)
+- [SPK Network](https://spk.network/)
+- [Documentation](https://dlux.io/docs)
+- [Discord](https://discord.gg/YEHvWEvvey)
+- [GitHub](https://github.com/disregardfiat/spk-js)

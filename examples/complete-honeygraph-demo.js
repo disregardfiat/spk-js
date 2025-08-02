@@ -10,7 +10,7 @@
  * - GovernanceAPI - Proposals, voting, delegations
  */
 
-import SPK from '@spknetwork/spk-js';
+import SPK from '@disregardfiat/spk-js';
 
 // Helper function to format numbers
 const formatNumber = (num) => new Intl.NumberFormat().format(num);

@@ -5,7 +5,7 @@
  * including error handling, retries, rate limiting, and best practices.
  */
 
-import SPK from '@spknetwork/spk-js';
+import SPK from '@disregardfiat/spk-js';
 
 /**
  * Production-ready wrapper for SPK with Honeygraph

@@ -17,7 +17,7 @@ Honeygraph provides:
 ### Basic Setup
 
 ```javascript
-import SPK from '@spknetwork/spk-js';
+import SPK from '@disregardfiat/spk-js';
 
 // Initialize with default Honeygraph configuration
 const spk = new SPK('your-username');
