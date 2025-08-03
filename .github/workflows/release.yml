@@ -139,6 +139,13 @@ jobs:
           dist/*.js
           dist/*.d.ts
     
+    - name: Debug ref information
+      run: |
+        echo "github.ref: ${{ github.ref }}"
+        echo "github.ref_name: ${{ github.ref_name }}"
+        echo "Contains alpha: ${{ contains(github.ref_name, '-alpha') }}"
+        echo "Contains beta: ${{ contains(github.ref_name, '-beta') }}"
+    
     - name: Publish to NPM
       if: ${{ !contains(github.ref_name, '-beta') && !contains(github.ref_name, '-alpha') }}
       run: npm publish --access public
