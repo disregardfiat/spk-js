@@ -676,11 +676,10 @@ export class SPKFile {
     let residual = Math.floor(num);
     let result = "";
     
-    while (true) {
+    while (residual > 0) {
       const char = residual % 64;
       result = glyphs64.charAt(char) + result;
       residual = Math.floor(residual / 64);
-      if (residual === 0) break;
     }
     
     return result;

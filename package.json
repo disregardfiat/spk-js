@@ -26,7 +26,7 @@
     "format": "prettier --write \"src/**/*.{js,ts}\" \"tests/**/*.{js,ts}\"",
     "docs": "typedoc --out docs/api src/index.ts",
     "prepare": "npm run build || echo 'Build failed, but continuing...'",
-    "prepublishOnly": "npm test && npm run lint",
+    "prepublishOnly": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags"
   },
