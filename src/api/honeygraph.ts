@@ -51,7 +51,7 @@ export class HoneygraphClient {
     params?: Record<string, any>
   ): Promise<any> {
     let url = `${this.baseUrl}${endpoint}`;
-    
+
     // Add query parameters
     if (params && Object.keys(params).length > 0) {
       const queryString = new URLSearchParams(params).toString();
@@ -70,7 +70,7 @@ export class HoneygraphClient {
       method,
       headers: {
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
     };
 
@@ -175,7 +175,7 @@ export class HoneygraphClient {
    */
   async getUserProfile(username: string, options?: UserProfileOptions): Promise<any> {
     const params: any = {};
-    
+
     if (options?.include) {
       if (Array.isArray(options.include)) {
         params.include = options.include.join(',');
@@ -209,7 +209,7 @@ export class HoneygraphClient {
   async getMarketDepth(pair: string, depth?: number): Promise<any> {
     const params: any = {};
     if (depth) params.depth = depth;
-    
+
     return this.get(`/api/spk/dex/${pair}`, params);
   }
 
@@ -219,7 +219,7 @@ export class HoneygraphClient {
   async getRichList(token: string, limit?: number): Promise<any> {
     const params: any = {};
     if (limit) params.limit = limit;
-    
+
     return this.get(`/api/spk/richlist/${token}`, params);
   }
 
@@ -282,7 +282,7 @@ export class HoneygraphClient {
   async getProposals(status?: string): Promise<any> {
     const params: any = {};
     if (status) params.status = status;
-    
+
     return this.get('/api/spk/governance/proposals', params);
   }
 

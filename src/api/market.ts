@@ -175,12 +175,15 @@ export class MarketAPI {
   /**
    * Get user's order history
    */
-  async getOrderHistory(username: string, options?: {
-    pair?: string;
-    limit?: number;
-    from?: string;
-    to?: string;
-  }): Promise<UserOrder[]> {
+  async getOrderHistory(
+    username: string,
+    options?: {
+      pair?: string;
+      limit?: number;
+      from?: string;
+      to?: string;
+    }
+  ): Promise<UserOrder[]> {
     const result = await this.client.get(`/api/spk/market/user/${username}/history`, options);
     return result.orders || [];
   }
@@ -196,11 +199,15 @@ export class MarketAPI {
   /**
    * Get OHLCV candlestick data
    */
-  async getOHLCV(pair: string, interval: '1m' | '5m' | '15m' | '1h' | '4h' | '1d', options?: {
-    from?: string;
-    to?: string;
-    limit?: number;
-  }): Promise<OHLCV[]> {
+  async getOHLCV(
+    pair: string,
+    interval: '1m' | '5m' | '15m' | '1h' | '4h' | '1d',
+    options?: {
+      from?: string;
+      to?: string;
+      limit?: number;
+    }
+  ): Promise<OHLCV[]> {
     const params = { interval, ...options };
     const result = await this.client.get(`/api/spk/market/${pair}/ohlcv`, params);
     return result.candles || [];
@@ -210,7 +217,9 @@ export class MarketAPI {
    * Get liquidity pool information
    */
   async getLiquidityPools(pair?: string): Promise<LiquidityPool[]> {
-    const endpoint = pair ? `/api/spk/market/liquidity-pools/${pair}` : '/api/spk/market/liquidity-pools';
+    const endpoint = pair
+      ? `/api/spk/market/liquidity-pools/${pair}`
+      : '/api/spk/market/liquidity-pools';
     const result = await this.client.get(endpoint);
     return result.pools || [];
   }
@@ -246,11 +255,16 @@ export class MarketAPI {
   /**
    * Get token price history
    */
-  async getPriceHistory(token: string, days: number = 30): Promise<Array<{
-    timestamp: string;
-    price: number;
-    volume: number;
-  }>> {
+  async getPriceHistory(
+    token: string,
+    days: number = 30
+  ): Promise<
+    Array<{
+      timestamp: string;
+      price: number;
+      volume: number;
+    }>
+  > {
     const result = await this.client.get(`/api/spk/market/price-history/${token}`, { days });
     return result.history || [];
   }
@@ -261,14 +275,16 @@ export class MarketAPI {
   async getMarketAlerts(options?: {
     type?: 'price' | 'volume' | 'liquidity';
     severity?: 'low' | 'medium' | 'high';
-  }): Promise<Array<{
-    id: string;
-    type: string;
-    severity: string;
-    message: string;
-    timestamp: string;
-    data: any;
-  }>> {
+  }): Promise<
+    Array<{
+      id: string;
+      type: string;
+      severity: string;
+      message: string;
+      timestamp: string;
+      data: any;
+    }>
+  > {
     const result = await this.client.get('/api/spk/market/alerts', options);
     return result.alerts || [];
   }
@@ -276,7 +292,11 @@ export class MarketAPI {
   /**
    * Calculate slippage for a trade
    */
-  async calculateSlippage(pair: string, amount: number, side: 'BUY' | 'SELL'): Promise<{
+  async calculateSlippage(
+    pair: string,
+    amount: number,
+    side: 'BUY' | 'SELL'
+  ): Promise<{
     estimatedPrice: number;
     slippagePercent: number;
     priceImpact: number;
@@ -285,7 +305,7 @@ export class MarketAPI {
     return this.client.get('/api/spk/market/calculate-slippage', {
       pair,
       amount,
-      side
+      side,
     });
   }
 }

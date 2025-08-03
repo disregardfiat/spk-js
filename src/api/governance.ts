@@ -239,12 +239,14 @@ export class GovernanceAPI {
   /**
    * Get voting recommendations
    */
-  async getVotingRecommendations(username: string): Promise<Array<{
-    proposalId: string;
-    recommendation: 'yes' | 'no' | 'abstain';
-    reasoning: string;
-    confidence: number;
-  }>> {
+  async getVotingRecommendations(username: string): Promise<
+    Array<{
+      proposalId: string;
+      recommendation: 'yes' | 'no' | 'abstain';
+      reasoning: string;
+      confidence: number;
+    }>
+  > {
     const result = await this.client.get(`/api/spk/governance/recommendations/${username}`);
     return result.recommendations || [];
   }
@@ -252,14 +254,16 @@ export class GovernanceAPI {
   /**
    * Get governance forum discussions
    */
-  async getProposalDiscussions(proposalId: string): Promise<Array<{
-    id: string;
-    author: string;
-    message: string;
-    timestamp: string;
-    replies: number;
-    sentiment: 'positive' | 'negative' | 'neutral';
-  }>> {
+  async getProposalDiscussions(proposalId: string): Promise<
+    Array<{
+      id: string;
+      author: string;
+      message: string;
+      timestamp: string;
+      replies: number;
+      sentiment: 'positive' | 'negative' | 'neutral';
+    }>
+  > {
     const result = await this.client.get(`/api/spk/governance/proposal/${proposalId}/discussions`);
     return result.discussions || [];
   }
@@ -267,13 +271,15 @@ export class GovernanceAPI {
   /**
    * Get quorum status for active proposals
    */
-  async getQuorumStatus(): Promise<Array<{
-    proposalId: string;
-    currentQuorum: number;
-    requiredQuorum: number;
-    percentage: number;
-    timeRemaining: string;
-  }>> {
+  async getQuorumStatus(): Promise<
+    Array<{
+      proposalId: string;
+      currentQuorum: number;
+      requiredQuorum: number;
+      percentage: number;
+      timeRemaining: string;
+    }>
+  > {
     const result = await this.client.get('/api/spk/governance/quorum-status');
     return result.proposals || [];
   }

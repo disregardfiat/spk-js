@@ -21,10 +21,10 @@ export interface FeatureConfig {
 }
 
 export interface FieldConfig {
-  type: 'I' | 'S' | 'AS';  // Integer, String, Account String
+  type: 'I' | 'S' | 'AS'; // Integer, String, Account String
   name: string;
   req?: boolean;
-  check?: 'AC';  // Account Check
+  check?: 'AC'; // Account Check
   min?: number;
   max?: number;
 }
@@ -39,36 +39,36 @@ export const DEFAULT_PROTOCOLS: Record<string, TokenProtocol> = {
       claim: {
         desc: 'Claim earned LARYNX rewards',
         json: {},
-        auth: 'posting'
+        auth: 'posting',
       },
       send: {
         desc: 'Send LARYNX tokens',
         json: {
           to: { type: 'AS', name: 'Send To', req: true, check: 'AC' },
           amount: { type: 'I', name: 'Amount', req: true, min: 1 },
-          memo: { type: 'S', name: 'Memo' }
+          memo: { type: 'S', name: 'Memo' },
         },
-        auth: 'active'
+        auth: 'active',
       },
       power_up: {
         desc: 'Power up LARYNX tokens',
         json: {
-          amount: { type: 'I', name: 'Amount', req: true, min: 1 }
+          amount: { type: 'I', name: 'Amount', req: true, min: 1 },
         },
-        auth: 'active'
+        auth: 'active',
       },
       power_down: {
         desc: 'Power down LARYNX Power',
         json: {
-          amount: { type: 'I', name: 'Amount', req: true, min: 1 }
+          amount: { type: 'I', name: 'Amount', req: true, min: 1 },
         },
-        auth: 'active'
-      }
+        auth: 'active',
+      },
     },
     api_health: {
       head_block: 0,
-      behind: 0
-    }
+      behind: 0,
+    },
   },
   SPK: {
     precision: 3,
@@ -78,30 +78,30 @@ export const DEFAULT_PROTOCOLS: Record<string, TokenProtocol> = {
       claim: {
         desc: 'Claim SPK Rewards',
         json: {},
-        auth: 'posting'
+        auth: 'posting',
       },
       send: {
         desc: 'Send SPK tokens',
         json: {
           to: { type: 'AS', name: 'Send To', req: true, check: 'AC' },
           amount: { type: 'I', name: 'Amount', req: true, min: 1 },
-          memo: { type: 'S', name: 'Memo' }
+          memo: { type: 'S', name: 'Memo' },
         },
-        auth: 'active'
+        auth: 'active',
       },
       power_up: {
         desc: 'Power up SPK tokens',
         json: {
-          amount: { type: 'I', name: 'Amount', req: true, min: 1 }
+          amount: { type: 'I', name: 'Amount', req: true, min: 1 },
         },
-        auth: 'active'
+        auth: 'active',
       },
       power_down: {
         desc: 'Power down SPK Power',
         json: {
-          amount: { type: 'I', name: 'Amount', req: true, min: 1 }
+          amount: { type: 'I', name: 'Amount', req: true, min: 1 },
         },
-        auth: 'active'
+        auth: 'active',
       },
       node_add: {
         desc: 'Register your account with the validator network',
@@ -109,15 +109,15 @@ export const DEFAULT_PROTOCOLS: Record<string, TokenProtocol> = {
           id: { type: 'S', name: 'IPFS Identity', req: true },
           domain: { type: 'S', name: 'https://example.com', req: true },
           bidRate: { type: 'I', name: 'Starting Bid Rate (0-1000)', req: true, min: 0, max: 1000 },
-          dm: { type: 'I', name: 'DecayMargin', req: true }
+          dm: { type: 'I', name: 'DecayMargin', req: true },
         },
-        auth: 'active'
-      }
+        auth: 'active',
+      },
     },
     api_health: {
       head_block: 0,
-      behind: 0
-    }
+      behind: 0,
+    },
   },
   BROCA: {
     precision: 0,
@@ -129,23 +129,23 @@ export const DEFAULT_PROTOCOLS: Record<string, TokenProtocol> = {
         json: {
           to: { type: 'AS', name: 'Send To', req: true, check: 'AC' },
           amount: { type: 'I', name: 'Amount', req: true, min: 1 },
-          memo: { type: 'S', name: 'Memo' }
+          memo: { type: 'S', name: 'Memo' },
         },
-        auth: 'active'
+        auth: 'active',
       },
       power_up: {
         desc: 'Power up BROCA tokens',
         json: {
-          amount: { type: 'I', name: 'Amount', req: true, min: 1 }
+          amount: { type: 'I', name: 'Amount', req: true, min: 1 },
         },
-        auth: 'active'
-      }
+        auth: 'active',
+      },
     },
     api_health: {
       head_block: 0,
-      behind: 0
-    }
-  }
+      behind: 0,
+    },
+  },
 };
 
 export class ProtocolManager {
@@ -176,7 +176,7 @@ export class ProtocolManager {
       const [larynxData, spkData, brocaData] = await Promise.all([
         this.fetchProtocol('/api/protocol'),
         this.fetchProtocol('/spk/api/protocol'),
-        this.fetchProtocol('/broca/api/protocol')
+        this.fetchProtocol('/broca/api/protocol'),
       ]);
 
       // Update protocols if fetch was successful
@@ -259,10 +259,10 @@ export class ProtocolManager {
     if (!protocol) {
       throw new Error(`Unknown token: ${token}`);
     }
-    
+
     const divisor = Math.pow(10, protocol.precision);
     const formatted = (amount / divisor).toFixed(protocol.precision);
-    
+
     return `${formatted} ${token}`;
   }
 

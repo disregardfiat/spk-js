@@ -7,11 +7,11 @@
  * Token precision configuration
  */
 const TOKEN_PRECISION = {
-  SPK: 3,      // SPK uses 3 decimal places
-  LARYNX: 3,   // LARYNX uses 3 decimal places
-  HIVE: 3,     // HIVE uses 3 decimal places
-  HBD: 3,      // HBD uses 3 decimal places
-  BROCA: 0     // BROCA uses no decimal places
+  SPK: 3, // SPK uses 3 decimal places
+  LARYNX: 3, // LARYNX uses 3 decimal places
+  HIVE: 3, // HIVE uses 3 decimal places
+  HBD: 3, // HBD uses 3 decimal places
+  BROCA: 0, // BROCA uses no decimal places
 };
 
 /**
@@ -48,9 +48,9 @@ function fromMilliunits(milliunits, token = 'SPK') {
 function formatTokenAmount(amount, token = 'SPK', includeSymbol = true) {
   const precision = TOKEN_PRECISION[token] || 3;
   const numAmount = parseFloat(amount);
-  
+
   if (isNaN(numAmount)) return '0.000';
-  
+
   const formatted = numAmount.toFixed(precision);
   return includeSymbol ? `${formatted} ${token}` : formatted;
 }
@@ -103,11 +103,11 @@ function parseBalanceString(balanceStr) {
   if (!balanceStr || typeof balanceStr !== 'string') {
     return { amount: 0, symbol: '' };
   }
-  
+
   const parts = balanceStr.trim().split(' ');
   return {
     amount: parseFloat(parts[0]) || 0,
-    symbol: parts[1] || ''
+    symbol: parts[1] || '',
   };
 }
 
@@ -132,7 +132,7 @@ function createBalanceString(amount, symbol) {
 function compareAmounts(a, b, token = 'SPK') {
   const aMillis = toMilliunits(a, token);
   const bMillis = toMilliunits(b, token);
-  
+
   if (aMillis < bMillis) return -1;
   if (aMillis > bMillis) return 1;
   return 0;
@@ -145,45 +145,40 @@ function compareAmounts(a, b, token = 'SPK') {
  * @returns {Object} - { valid: boolean, error?: string }
  */
 function validateAmount(amount, options = {}) {
-  const {
-    token = 'SPK',
-    min = 0,
-    max = Infinity,
-    allowZero = false
-  } = options;
-  
+  const { token = 'SPK', min = 0, max = Infinity, allowZero = false } = options;
+
   // Check if amount is a valid number
   const numAmount = parseFloat(amount);
   if (isNaN(numAmount)) {
     return { valid: false, error: 'Invalid number format' };
   }
-  
+
   // Check zero
   if (!allowZero && numAmount === 0) {
     return { valid: false, error: 'Amount cannot be zero' };
   }
-  
+
   // Check negative
   if (numAmount < 0) {
     return { valid: false, error: 'Amount cannot be negative' };
   }
-  
+
   // Check min/max
   if (numAmount < min) {
     return { valid: false, error: `Amount must be at least ${min}` };
   }
-  
+
   if (numAmount > max) {
     return { valid: false, error: `Amount cannot exceed ${max}` };
   }
-  
+
   // Check precision
   const precision = TOKEN_PRECISION[token] || 3;
   const decimalPlaces = (amount.toString().split('.')[1] || '').length;
   if (decimalPlaces > precision) {
     return { valid: false, error: `Maximum ${precision} decimal places allowed` };
   }
-  
+
   return { valid: true };
 }
 
@@ -197,7 +192,7 @@ function validateAmount(amount, options = {}) {
 function roundToPrecision(amount, token = 'SPK', mode = 'round') {
   const precision = TOKEN_PRECISION[token] || 3;
   const multiplier = Math.pow(10, precision);
-  
+
   let rounded;
   switch (mode) {
     case 'floor':
@@ -209,7 +204,7 @@ function roundToPrecision(amount, token = 'SPK', mode = 'round') {
     default:
       rounded = Math.round(amount * multiplier) / multiplier;
   }
-  
+
   return rounded;
 }
 
@@ -221,12 +216,12 @@ function roundToPrecision(amount, token = 'SPK', mode = 'round') {
  */
 function calculateTotalValue(balances, prices) {
   let total = 0;
-  
+
   for (const [token, balance] of Object.entries(balances)) {
     const price = prices[token] || 0;
     total += parseFloat(balance) * price;
   }
-  
+
   return total;
 }
 
@@ -244,5 +239,5 @@ module.exports = {
   compareAmounts,
   validateAmount,
   roundToPrecision,
-  calculateTotalValue
+  calculateTotalValue,
 };

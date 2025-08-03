@@ -1,6 +1,6 @@
 /**
  * SPK UI Icons
- * 
+ *
  * SVG icon generators for SPK Network UI components
  */
 
@@ -13,7 +13,7 @@
 export function getFileIcon(fileType: string, size: number = 48): string {
   // Ensure file type is uppercase and limited to 4 characters
   const displayType = (fileType || 'FILE').toUpperCase().substring(0, 4);
-  
+
   return `
     <svg version="1.1" xmlns="http://www.w3.org/2000/svg"
          xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 800 800"
@@ -43,55 +43,55 @@ export function getFileIcon(fileType: string, size: number = 48): string {
  */
 export function getFileEmoji(fileType: string): string {
   const type = fileType?.toLowerCase() || '';
-  
+
   const emojiMap: Record<string, string> = {
     // Video formats
-    'mp4': '🎬',
-    'webm': '🎬',
-    'avi': '🎬',
-    'mov': '🎬',
-    'mkv': '🎬',
-    
+    mp4: '🎬',
+    webm: '🎬',
+    avi: '🎬',
+    mov: '🎬',
+    mkv: '🎬',
+
     // Image formats
-    'jpg': '🖼️',
-    'jpeg': '🖼️',
-    'png': '🖼️',
-    'gif': '🖼️',
-    'webp': '🖼️',
-    'svg': '🖼️',
-    
+    jpg: '🖼️',
+    jpeg: '🖼️',
+    png: '🖼️',
+    gif: '🖼️',
+    webp: '🖼️',
+    svg: '🖼️',
+
     // Audio formats
-    'mp3': '🎵',
-    'wav': '🎵',
-    'ogg': '🎵',
-    'flac': '🎵',
-    'm4a': '🎵',
-    
+    mp3: '🎵',
+    wav: '🎵',
+    ogg: '🎵',
+    flac: '🎵',
+    m4a: '🎵',
+
     // Document formats
-    'pdf': '📄',
-    'doc': '📝',
-    'docx': '📝',
-    'txt': '📝',
-    'md': '📝',
-    
+    pdf: '📄',
+    doc: '📝',
+    docx: '📝',
+    txt: '📝',
+    md: '📝',
+
     // Archive formats
-    'zip': '📦',
-    'rar': '📦',
+    zip: '📦',
+    rar: '📦',
     '7z': '📦',
-    'tar': '📦',
-    'gz': '📦',
-    
+    tar: '📦',
+    gz: '📦',
+
     // Code formats
-    'js': '💻',
-    'ts': '💻',
-    'py': '💻',
-    'java': '💻',
-    'cpp': '💻',
-    'c': '💻',
-    'html': '💻',
-    'css': '💻',
-    'json': '💻'
+    js: '💻',
+    ts: '💻',
+    py: '💻',
+    java: '💻',
+    cpp: '💻',
+    c: '💻',
+    html: '💻',
+    css: '💻',
+    json: '💻',
   };
-  
+
   return emojiMap[type] || '📎';
 }

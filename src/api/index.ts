@@ -3,17 +3,17 @@ export type { HiveAccount } from './hive';
 export { HoneygraphClient } from './honeygraph';
 export type { HoneygraphOptions, UserProfileOptions, FileSearchOptions } from './honeygraph';
 export { UserAPI } from './user';
-export type { 
-  UserBalances, 
-  UserContract, 
-  StoringContract, 
-  UserService, 
-  Delegation as UserDelegation, 
-  NodeMarket, 
-  DexOrder, 
-  UserFile, 
-  UserFilesOptions, 
-  UserSummary 
+export type {
+  UserBalances,
+  UserContract,
+  StoringContract,
+  UserService,
+  Delegation as UserDelegation,
+  NodeMarket,
+  DexOrder,
+  UserFile,
+  UserFilesOptions,
+  UserSummary,
 } from './user';
 export { FileSearchAPI } from './files';
 export type {
@@ -23,7 +23,7 @@ export type {
   FileProvidersResult,
   FileMetadata,
   FileStats,
-  SimilarFile
+  SimilarFile,
 } from './files';
 export { StorageAPI } from './storage';
 export type {
@@ -35,7 +35,7 @@ export type {
   StorageOpportunity,
   StorageMarketStats,
   StorageROI,
-  ExpiringContract
+  ExpiringContract,
 } from './storage';
 export { MarketAPI } from './market';
 export type {
@@ -49,7 +49,7 @@ export type {
   OHLCV,
   LiquidityPool,
   MarketSentiment,
-  ArbitrageOpportunity
+  ArbitrageOpportunity,
 } from './market';
 export { NetworkAPI } from './network';
 export type {
@@ -65,7 +65,7 @@ export type {
   NetworkActivity,
   PeerConnection,
   NetworkGrowth,
-  NetworkLatency
+  NetworkLatency,
 } from './network';
 export { GovernanceAPI } from './governance';
 export type {
@@ -79,5 +79,5 @@ export type {
   VoterHistory,
   Delegation as GovernanceDelegation,
   DelegationInfo,
-  UpcomingProposal
+  UpcomingProposal,
 } from './governance';

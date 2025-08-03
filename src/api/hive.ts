@@ -14,7 +14,7 @@ export class HiveAPI {
     'https://api.hive.blog',
     'https://api.deathwing.me',
     'https://hive-api.arcange.eu',
-    'https://api.openhive.network'
+    'https://api.openhive.network',
   ];
 
   private static currentNodeIndex = 0;
@@ -28,7 +28,7 @@ export class HiveAPI {
     }
 
     const node = this.nodes[this.currentNodeIndex];
-    
+
     try {
       const response = await fetch(`${node}/api/accounts`, {
         method: 'POST',
@@ -39,8 +39,8 @@ export class HiveAPI {
           jsonrpc: '2.0',
           method: 'condenser_api.get_accounts',
           params: [usernames],
-          id: 1
-        })
+          id: 1,
+        }),
       });
 
       if (!response.ok) {
@@ -48,7 +48,7 @@ export class HiveAPI {
       }
 
       const data = await response.json();
-      
+
       if (data.error) {
         throw new Error(data.error.message || 'API error');
       }
@@ -57,12 +57,12 @@ export class HiveAPI {
     } catch (error) {
       // Try next node on failure
       this.currentNodeIndex = (this.currentNodeIndex + 1) % this.nodes.length;
-      
+
       // If we've tried all nodes, throw the error
       if (this.currentNodeIndex === 0) {
         throw error;
       }
-      
+
       // Retry with next node
       return this.getAccounts(usernames);
     }

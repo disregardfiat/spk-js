@@ -36,7 +36,7 @@ export class TokenOperations {
    */
   async send(amountStr: string, to: string, memo = ''): Promise<TokenOperationResult> {
     const { amount, token } = this.protocol.parseAmount(amountStr);
-    
+
     switch (token) {
       case 'LARYNX':
         return this.sendLarynx(amount, to, memo);
@@ -56,7 +56,7 @@ export class TokenOperations {
     return this.executeTokenOperation('LARYNX', 'send', {
       to,
       amount,
-      memo
+      memo,
     });
   }
 
@@ -67,7 +67,7 @@ export class TokenOperations {
     return this.executeTokenOperation('SPK', 'send', {
       to,
       amount,
-      memo
+      memo,
     });
   }
 
@@ -78,7 +78,7 @@ export class TokenOperations {
     return this.executeTokenOperation('BROCA', 'send', {
       to,
       amount,
-      memo
+      memo,
     });
   }
 
@@ -89,9 +89,9 @@ export class TokenOperations {
     if (!['LARYNX', 'SPK', 'BROCA'].includes(token.toUpperCase())) {
       throw new Error(`Power up not supported for token: ${token}`);
     }
-    
+
     return this.executeTokenOperation(token.toUpperCase(), 'power_up', {
-      amount
+      amount,
     });
   }
 
@@ -102,9 +102,9 @@ export class TokenOperations {
     if (!['LARYNX', 'SPK'].includes(token.toUpperCase())) {
       throw new Error(`Power down not supported for token: ${token}`);
     }
-    
+
     return this.executeTokenOperation(token.toUpperCase(), 'power_down', {
-      amount
+      amount,
     });
   }
 
@@ -115,7 +115,7 @@ export class TokenOperations {
     if (!['LARYNX', 'SPK'].includes(token.toUpperCase())) {
       throw new Error(`Claim not supported for token: ${token}`);
     }
-    
+
     return this.executeTokenOperation(token.toUpperCase(), 'claim', {});
   }
 
@@ -123,16 +123,16 @@ export class TokenOperations {
    * Register as SPK Network node
    */
   async registerNode(
-    ipfsId: string, 
-    domain: string, 
-    bidRate: number, 
+    ipfsId: string,
+    domain: string,
+    bidRate: number,
     decayMargin: number
   ): Promise<TokenOperationResult> {
     return this.executeTokenOperation('SPK', 'node_add', {
       id: ipfsId,
       domain,
       bidRate,
-      dm: decayMargin
+      dm: decayMargin,
     });
   }
 
@@ -162,17 +162,15 @@ export class TokenOperations {
     // Get custom JSON ID and auth type
     const customJsonId = this.protocol.getCustomJsonId(token, feature);
     const authType = this.protocol.getAuthType(token, feature);
-    
+
     // Build transaction JSON
     const json = {
       ...data,
-      from: this.username
+      from: this.username,
     };
 
     // Get token info for display message
-    const amountDisplay = data.amount 
-      ? this.protocol.formatAmount(token, data.amount) 
-      : '';
+    const amountDisplay = data.amount ? this.protocol.formatAmount(token, data.amount) : '';
     const displayMessage = this.buildDisplayMessage(token, feature, data, amountDisplay);
 
     try {
@@ -186,7 +184,7 @@ export class TokenOperations {
 
       return {
         id: result.id,
-        success: true
+        success: true,
       };
     } catch (error: any) {
       throw new Error(`Token operation failed: ${error.message}`);
@@ -197,9 +195,9 @@ export class TokenOperations {
    * Build human-readable display message for transaction
    */
   private buildDisplayMessage(
-    token: string, 
-    feature: string, 
-    data: any, 
+    token: string,
+    feature: string,
+    data: any,
     amountDisplay: string
   ): string {
     switch (feature) {

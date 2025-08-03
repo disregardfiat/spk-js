@@ -20,7 +20,7 @@ export class HiveCrypto {
     // 1. Decode the base58 key
     // 2. Extract the actual public key bytes
     // 3. Import as an appropriate key type
-    
+
     // For now, we'll create a dummy RSA key for testing
     // In production, Hive uses secp256k1 which would need conversion
     const keyData = {
@@ -29,7 +29,7 @@ export class HiveCrypto {
       n: 'mock-key-data-' + hivePubKey,
       alg: 'RSA-OAEP-256',
       ext: true,
-      key_ops: ['encrypt', 'wrapKey']
+      key_ops: ['encrypt', 'wrapKey'],
     };
 
     return crypto.subtle.importKey(
@@ -37,7 +37,7 @@ export class HiveCrypto {
       keyData as any,
       {
         name: 'RSA-OAEP',
-        hash: 'SHA-256'
+        hash: 'SHA-256',
       },
       false,
       ['encrypt', 'wrapKey']
@@ -53,17 +53,19 @@ export class HiveCrypto {
     // 1. Derive shared secret using ECDH
     // 2. Encrypt message with AES using shared secret
     // 3. Format as Hive memo (starts with #)
-    
+
     const timestamp = Date.now();
     const nonce = Math.random().toString(36).substring(2, 15);
-    const encoded = Buffer.from(JSON.stringify({
-      msg: message,
-      from: privateKey.substring(0, 10),
-      to: publicKey.substring(0, 10),
-      ts: timestamp,
-      nonce
-    })).toString('base64');
-    
+    const encoded = Buffer.from(
+      JSON.stringify({
+        msg: message,
+        from: privateKey.substring(0, 10),
+        to: publicKey.substring(0, 10),
+        ts: timestamp,
+        nonce,
+      })
+    ).toString('base64');
+
     return `#${encoded}`;
   }
 
@@ -88,24 +90,18 @@ export class HiveCrypto {
    * Generate a shared secret for memo encryption
    * Used for deriving encryption keys between two Hive accounts
    */
-  static async generateSharedSecret(
-    privateKey: string, 
-    publicKey: string
-  ): Promise<CryptoKey> {
+  static async generateSharedSecret(privateKey: string, publicKey: string): Promise<CryptoKey> {
     // In production, this would use ECDH with secp256k1 keys
     // For now, generate a deterministic key based on the input
     const combined = privateKey + publicKey;
     const encoder = new TextEncoder();
     const data = encoder.encode(combined);
-    
+
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    
-    return crypto.subtle.importKey(
-      'raw',
-      hashBuffer,
-      { name: 'AES-GCM' },
-      false,
-      ['encrypt', 'decrypt']
-    );
+
+    return crypto.subtle.importKey('raw', hashBuffer, { name: 'AES-GCM' }, false, [
+      'encrypt',
+      'decrypt',
+    ]);
   }
 }

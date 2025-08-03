@@ -9,8 +9,8 @@ export interface FileMetadataOptions {
   name?: string;
   ext?: string;
   thumb?: string;
-  tags?: number | number[];  // Bitwise flags (single value or array)
-  labels?: string;  // String of label characters
+  tags?: number | number[]; // Bitwise flags (single value or array)
+  labels?: string; // String of label characters
   license?: string; // License identifier
 }
 
@@ -38,23 +38,23 @@ export const TAGS: TagOption[] = [
   {
     value: 1,
     label: 'Encrypted',
-    description: 'File is encrypted'
+    description: 'File is encrypted',
   },
   {
     value: 2,
     label: 'Hidden',
-    description: 'Hidden from file explorer'
+    description: 'Hidden from file explorer',
   },
   {
     value: 4,
     label: 'NSFW',
-    description: 'Not Safe For Work'
+    description: 'Not Safe For Work',
   },
   {
     value: 8,
     label: 'Executable',
-    description: 'Is an executable file'
-  }
+    description: 'Is an executable file',
+  },
 ];
 
 // Available licenses
@@ -63,44 +63,44 @@ export const LICENSES: LicenseOption[] = [
     value: '1',
     label: 'CC BY',
     description: 'Creative Commons Attribution License',
-    link: 'https://creativecommons.org/licenses/by/4.0/'
+    link: 'https://creativecommons.org/licenses/by/4.0/',
   },
   {
     value: '2',
     label: 'CC BY-SA',
     description: 'Creative Commons Share Alike License',
-    link: 'https://creativecommons.org/licenses/by-sa/4.0/'
+    link: 'https://creativecommons.org/licenses/by-sa/4.0/',
   },
   {
     value: '3',
     label: 'CC BY-ND',
     description: 'Creative Commons No Derivatives License',
-    link: 'https://creativecommons.org/licenses/by-nd/4.0/'
+    link: 'https://creativecommons.org/licenses/by-nd/4.0/',
   },
   {
     value: '4',
     label: 'CC BY-NC-ND',
     description: 'Creative Commons Non-Commercial No Derivatives License',
-    link: 'https://creativecommons.org/licenses/by-nc-nd/4.0/'
+    link: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
   },
   {
     value: '5',
     label: 'CC BY-NC',
     description: 'Creative Commons Non-Commercial License',
-    link: 'https://creativecommons.org/licenses/by-nc/4.0/'
+    link: 'https://creativecommons.org/licenses/by-nc/4.0/',
   },
   {
     value: '6',
     label: 'CC BY-NC-SA',
     description: 'Creative Commons Non-Commercial Share Alike License',
-    link: 'https://creativecommons.org/licenses/by-nc-sa/4.0/'
+    link: 'https://creativecommons.org/licenses/by-nc-sa/4.0/',
   },
   {
     value: '7',
     label: 'CC0',
     description: 'CC0: Public Domain Grant',
-    link: 'https://creativecommons.org/publicdomain/zero/1.0/'
-  }
+    link: 'https://creativecommons.org/publicdomain/zero/1.0/',
+  },
 ];
 
 // Available labels
@@ -108,61 +108,61 @@ export const LABELS: LabelOption[] = [
   {
     value: '0',
     label: 'Miscellaneous',
-    icon: 'fa-sink'
+    icon: 'fa-sink',
   },
   {
     value: '1',
     label: 'Important',
-    icon: 'fa-exclamation'
+    icon: 'fa-exclamation',
   },
   {
     value: '2',
     label: 'Favorite',
-    icon: 'fa-star'
+    icon: 'fa-star',
   },
   {
     value: '3',
     label: 'Random',
-    icon: 'fa-dice'
+    icon: 'fa-dice',
   },
   {
     value: '4',
     label: 'Red',
-    icon: 'fa-circle text-red'
+    icon: 'fa-circle text-red',
   },
   {
     value: '5',
     label: 'Orange',
-    icon: 'fa-circle text-orange'
+    icon: 'fa-circle text-orange',
   },
   {
     value: '6',
     label: 'Yellow',
-    icon: 'fa-circle text-yellow'
+    icon: 'fa-circle text-yellow',
   },
   {
     value: '7',
     label: 'Green',
-    icon: 'fa-circle text-green'
+    icon: 'fa-circle text-green',
   },
   {
     value: '8',
     label: 'Blue',
-    icon: 'fa-circle text-blue'
+    icon: 'fa-circle text-blue',
   },
   {
     value: '9',
     label: 'Purple',
-    icon: 'fa-circle text-purple'
-  }
+    icon: 'fa-circle text-purple',
+  },
 ];
 
 export class SPKFileMetadata {
   public name: string = '';
   public ext: string = '';
   public thumb: string = '';
-  public tags: number = 0;     // Bitwise flags
-  public labels: string = '';  // String of label characters
+  public tags: number = 0; // Bitwise flags
+  public labels: string = ''; // String of label characters
   public license: string = ''; // License identifier
 
   constructor(options: FileMetadataOptions = {}) {
@@ -206,7 +206,7 @@ export class SPKFileMetadata {
    */
   getActiveTags(): number[] {
     const activeTags: number[] = [];
-    TAGS.forEach(tag => {
+    TAGS.forEach((tag) => {
       if (this.hasTag(tag.value)) {
         activeTags.push(tag.value);
       }
@@ -250,7 +250,7 @@ export class SPKFileMetadata {
    */
   getActiveLabels(): string[] {
     if (!this.labels) return [];
-    return this.labels.split('').filter(l => l !== '');
+    return this.labels.split('').filter((l) => l !== '');
   }
 
   /**
@@ -271,7 +271,7 @@ export class SPKFileMetadata {
    * Get license details
    */
   getLicenseDetails(): LicenseOption | undefined {
-    return LICENSES.find(l => l.value === this.license);
+    return LICENSES.find((l) => l.value === this.license);
   }
 
   /**
@@ -279,7 +279,7 @@ export class SPKFileMetadata {
    */
   toSPKFormat(): any {
     const meta: any = {};
-    
+
     if (this.name) meta.name = this.name;
     if (this.ext) meta.ext = this.ext;
     if (this.thumb) meta.thumb = this.thumb;
@@ -289,7 +289,7 @@ export class SPKFileMetadata {
     }
     if (this.labels) meta.labels = this.labels;
     if (this.license) meta.license = this.license;
-    
+
     return meta;
   }
 
@@ -298,7 +298,7 @@ export class SPKFileMetadata {
    */
   static fromSPKFormat(meta: any): SPKFileMetadata {
     const options: FileMetadataOptions = {};
-    
+
     if (meta.name) options.name = meta.name;
     if (meta.ext) options.ext = meta.ext;
     if (meta.thumb) options.thumb = meta.thumb;
@@ -308,7 +308,7 @@ export class SPKFileMetadata {
     }
     if (meta.labels) options.labels = meta.labels;
     if (meta.license) options.license = meta.license;
-    
+
     return new SPKFileMetadata(options);
   }
 }

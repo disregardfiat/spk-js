@@ -15,11 +15,7 @@ export class BrocaCalculator {
   /**
    * Calculate available BROCA with regeneration
    */
-  static available(account: {
-    broca?: string;
-    spk_power?: number;
-    head_block?: number;
-  }): number {
+  static available(account: { broca?: string; spk_power?: number; head_block?: number }): number {
     if (!account.broca || typeof account.broca !== 'string') return 0;
 
     try {

@@ -7,7 +7,15 @@ import { SPKDrive } from './drive';
 import { ProtocolManager } from './core/protocol';
 import { TokenOperations } from './tokens/operations';
 import { FileSystem } from './filesystem';
-import { HoneygraphClient, UserAPI, FileSearchAPI, StorageAPI, MarketAPI, NetworkAPI, GovernanceAPI } from './api';
+import {
+  HoneygraphClient,
+  UserAPI,
+  FileSearchAPI,
+  StorageAPI,
+  MarketAPI,
+  NetworkAPI,
+  GovernanceAPI,
+} from './api';
 import { NodeOperations } from './storage/node-operations';
 import { DirectUpload, DirectUploadOptions, DirectUploadResult } from './storage/direct-upload';
 
@@ -17,22 +25,17 @@ export * from './core/config';
 export * from './core/keychain-adapter';
 export * from './core/protocol';
 export * from './tokens/operations';
-export { 
-  UploadOptions, 
-  UploadResult, 
-  FileData,
-  FileMetadataItem
-} from './storage/file';
+export { UploadOptions, UploadResult, FileData, FileMetadataItem } from './storage/file';
 export { BatchUploadResult } from './storage/file-upload';
 export * from './storage/metadata';
 export * from './storage/file-metadata';
 export * from './tokens/broca';
-export { 
+export {
   SPKDrive,
   SPKFile as DriveFile,
   SPKFolder as DriveFolder,
   SPKContract,
-  FileMetadata as DriveFileMetadata 
+  FileMetadata as DriveFileMetadata,
 } from './drive';
 
 // Re-export specific classes for easier access
@@ -51,12 +54,7 @@ export * from './ui/icons';
 export * from './filesystem';
 
 // Export Honeygraph APIs - be selective to avoid conflicts
-export { 
-  HoneygraphClient, 
-  UserAPI, 
-  FileSearchAPI,
-  HiveAPI
-} from './api';
+export { HoneygraphClient, UserAPI, FileSearchAPI, HiveAPI } from './api';
 export type {
   HoneygraphOptions,
   UserProfileOptions,
@@ -76,7 +74,7 @@ export type {
   FileProvidersResult,
   FileMetadata as HoneygraphFileMetadata,
   FileStats,
-  SimilarFile
+  SimilarFile,
 } from './api';
 
 /**
@@ -112,15 +110,15 @@ export default class SPK {
       this.account.api,
       this.protocol
     );
-    
+
     // Initialize Honeygraph with configurable baseUrl
     const honeygraphUrl = options.honeygraphUrl || 'https://honeygraph.dlux.io';
-    this.honeygraph = new HoneygraphClient({ 
+    this.honeygraph = new HoneygraphClient({
       baseUrl: honeygraphUrl,
       enableCache: options.enableHoneygraphCache ?? true,
-      cacheTTL: options.honeygraphCacheTTL ?? 60000 // 1 minute default
+      cacheTTL: options.honeygraphCacheTTL ?? 60000, // 1 minute default
     });
-    
+
     // Initialize API modules
     this.users = new UserAPI(this.honeygraph);
     this.files = new FileSearchAPI(this.honeygraph);
@@ -128,26 +126,22 @@ export default class SPK {
     this.market = new MarketAPI(this.honeygraph);
     this.network = new NetworkAPI(this.honeygraph);
     this.governance = new GovernanceAPI(this.honeygraph);
-    
+
     // Keep filesystem for backward compatibility
     this.filesystem = new FileSystem(this.account.api, {
-      baseUrl: honeygraphUrl
+      baseUrl: honeygraphUrl,
     });
-    
+
     // Initialize NodeOperations for storage node management
-    this.nodeOps = new NodeOperations(
-      this.account, 
-      this.account.api,
-      this.account.keychainAdapter
-    );
-    
+    this.nodeOps = new NodeOperations(this.account, this.account.api, this.account.keychainAdapter);
+
     // Initialize DirectUpload for bypassing normal upload pipeline
     this.directUploadService = new DirectUpload(
       this.account,
       this.account.api,
       this.account.keychainAdapter
     );
-    
+
     // Set global SPK instance for contract creator
     (global as any).currentSPKInstance = this;
   }
@@ -164,7 +158,10 @@ export default class SPK {
    * Upload single or multiple files to SPK Network
    * Supports batch uploads with individual metadata
    */
-  async upload(files: File | File[], options?: UploadOptions): Promise<UploadResult | BatchUploadResult> {
+  async upload(
+    files: File | File[],
+    options?: UploadOptions
+  ): Promise<UploadResult | BatchUploadResult> {
     return this.fileUpload.upload(files, options);
   }
 
@@ -183,7 +180,7 @@ export default class SPK {
     BRC?: string;
   }> {
     const balances = await this.account.getBalances(refresh);
-    
+
     // Get network stats for BROCA storage calculation
     let brocaStorageSize = '0MB';
     try {
@@ -194,7 +191,7 @@ export default class SPK {
     } catch (error) {
       console.warn('Failed to calculate BROCA storage size:', error);
     }
-    
+
     // Extended balance info from account data
     return {
       ...balances,
@@ -203,7 +200,7 @@ export default class SPK {
       LP: this.account.poweredUp || 0,
       SP: this.account.spk_power || 0,
       BP: this.account.pow_broca || 0,
-      BRC: brocaStorageSize
+      BRC: brocaStorageSize,
     };
   }
 
@@ -213,7 +210,7 @@ export default class SPK {
   private async calculateBrocaStorage(brocaCredits: number, channelBytes: number): Promise<string> {
     // BROCA credits * channel_bytes = total bytes available
     const totalBytes = brocaCredits * channelBytes;
-    
+
     // Format as human-readable size
     if (totalBytes < 1024) {
       return `${totalBytes}B`;
@@ -320,7 +317,7 @@ export default class SPK {
     const serviceData: any = {
       amount,
       type: 'IPFS',
-      id: ipfsId
+      id: ipfsId,
     };
 
     // Only add api field if domain is provided (gateway nodes)
@@ -328,7 +325,7 @@ export default class SPK {
       serviceData.api = `https://ipfs.${domain}`;
     }
 
-    const displayMessage = domain 
+    const displayMessage = domain
       ? `Register storage service with domain ${domain} for ${amount} LARYNX`
       : `Register P2P storage service for ${amount} LARYNX`;
 
@@ -343,7 +340,7 @@ export default class SPK {
 
       return {
         id: result.id,
-        success: true
+        success: true,
       };
     } catch (error: any) {
       throw new Error(`Storage service registration failed: ${error.message}`);
@@ -375,7 +372,10 @@ export default class SPK {
    * Calculate BROCA cost with network stats
    * Compatible with SPK desktop API
    */
-  async calculateBrocaCost(sizeInBytes: number, options: any = {}): Promise<{
+  async calculateBrocaCost(
+    sizeInBytes: number,
+    options: any = {}
+  ): Promise<{
     cost: number;
     baseCost: number;
     minCost: number;
@@ -389,25 +389,25 @@ export default class SPK {
   }> {
     try {
       // Use provided stats or fetch fresh ones
-      const stats = options.stats || await this.getNetworkStats();
-      
+      const stats = options.stats || (await this.getNetworkStats());
+
       if (!stats || !stats.result) {
         throw new Error('Invalid network stats');
       }
-      
+
       const { channel_bytes = 1024, channel_min = 100 } = stats.result;
-      
+
       // Calculate base cost: 1 BROCA per channel_bytes (typically 1024 bytes)
       const baseCost = Math.ceil(sizeInBytes / channel_bytes);
-      
+
       // For contracts, there's a minimum cost
       const minCost = options.includeContractMin ? channel_min : 0;
       const actualCost = Math.max(baseCost, minCost);
-      
+
       // Calculate how much data this BROCA can store
       const brocaCapacity = actualCost * channel_bytes;
       const refundableBroca = options.includeContractMin ? Math.max(0, minCost - baseCost) : 0;
-      
+
       return {
         cost: actualCost,
         baseCost,
@@ -418,7 +418,7 @@ export default class SPK {
         sizeInMB: sizeInBytes / (1024 * 1024),
         brocaCapacity,
         bytesPerBroca: channel_bytes,
-        contractDays: 30
+        contractDays: 30,
       };
     } catch (error) {
       console.error('Failed to calculate BROCA cost:', error);
@@ -434,7 +434,7 @@ export default class SPK {
         sizeInMB: sizeInBytes / (1024 * 1024),
         brocaCapacity: baseCost * 1024,
         bytesPerBroca: 1024,
-        contractDays: 30
+        contractDays: 30,
       };
     }
   }
@@ -449,21 +449,16 @@ export default class SPK {
   /**
    * List user's files
    */
-  async listFiles(filters?: {
-    folder?: string;
-    tags?: string[];
-  }): Promise<any[]> {
+  async listFiles(filters?: { folder?: string; tags?: string[] }): Promise<any[]> {
     const contracts = await this.listContracts();
     let files = contracts;
 
     if (filters?.folder) {
-      files = files.filter(f => f.metadata?.folder === filters.folder);
+      files = files.filter((f) => f.metadata?.folder === filters.folder);
     }
 
     if (filters?.tags && filters.tags.length > 0) {
-      files = files.filter(f => 
-        filters.tags!.some(tag => f.metadata?.tags?.includes(tag))
-      );
+      files = files.filter((f) => filters.tags!.some((tag) => f.metadata?.tags?.includes(tag)));
     }
 
     return files;
@@ -479,20 +474,13 @@ export default class SPK {
     }
 
     const auth = await this.account.sign(`cancel_contract:${contract.id}`);
-    return this.account.api.post(
-      `/api/fileContract/${contract.id}/cancel`,
-      {},
-      auth
-    );
+    return this.account.api.post(`/api/fileContract/${contract.id}/cancel`, {}, auth);
   }
 
   /**
    * Renew storage contract
    */
-  async renewContract(
-    contractId: string,
-    options: { duration?: number } = {}
-  ): Promise<any> {
+  async renewContract(contractId: string, options: { duration?: number } = {}): Promise<any> {
     const auth = await this.account.sign(`renew_contract:${contractId}`);
     return this.account.api.post(
       `/api/fileContract/${contractId}/renew`,
@@ -547,11 +535,11 @@ export default class SPK {
       if (!response.ok) {
         throw new Error('Failed to fetch storage providers');
       }
-      
+
       const data = await response.json();
       const services: any[] = [];
 
-      // Process the services data  
+      // Process the services data
       if (data.services) {
         for (let i = 0; i < data.services.length; i++) {
           const serviceGroup = data.services[i];
@@ -559,12 +547,12 @@ export default class SPK {
             services.push({
               id,
               api: (service as any).a,
-              account: (service as any).b
+              account: (service as any).b,
             });
           }
         }
       }
-      
+
       return { providers: data.providers || {}, services, raw: data };
     } catch (error) {
       console.error('Failed to get storage providers:', error);
@@ -579,58 +567,58 @@ export default class SPK {
    */
   async getHealthyStorageProviders(requiredSize: number): Promise<any[]> {
     const { services } = await this.getStorageProviders();
-    
+
     // Known problematic nodes to skip
     const skipNodes = new Set([]);
-    
+
     // Check each provider's health and capacity
     const checkPromises = services.map(async (service: any) => {
       // Skip known problematic nodes
-      if (service.api && Array.from(skipNodes).some(badNode => service.api.includes(badNode))) {
+      if (service.api && Array.from(skipNodes).some((badNode) => service.api.includes(badNode))) {
         return null;
       }
-      
+
       try {
         // Set a timeout for the health check
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 1000);
-        
+
         const statsResponse = await fetch(`${service.api}/upload-stats`, {
-          signal: controller.signal
+          signal: controller.signal,
         });
-        
+
         clearTimeout(timeoutId);
-        
+
         if (!statsResponse.ok) {
           return null;
         }
-        
+
         const stats = await statsResponse.json();
-        
+
         // Check if provider has enough space (2x required size for safety)
         const maxStorage = BigInt(stats.StorageMax || 0);
         const repoSize = BigInt(stats.RepoSize || 0);
         const freeSpace = maxStorage - repoSize;
         const requiredSpace = BigInt(requiredSize) * BigInt(2);
-        
+
         if (freeSpace >= requiredSpace) {
           return {
             ...service,
             stats,
             freeSpace: Number(freeSpace),
-            healthy: true
+            healthy: true,
           };
         }
       } catch (error) {
         // Provider is not healthy/reachable
         return null;
       }
-      
+
       return null;
     });
-    
+
     const results = await Promise.all(checkPromises);
-    return results.filter(provider => provider !== null);
+    return results.filter((provider) => provider !== null);
   }
 
   /**
@@ -644,7 +632,10 @@ export default class SPK {
   /**
    * Create storage contract (compatible with SPK desktop API)
    */
-  async createStorageContract(contractData: any, _options: any = {}): Promise<{
+  async createStorageContract(
+    contractData: any,
+    _options: any = {}
+  ): Promise<{
     success: boolean;
     contract?: any;
     error?: string;
@@ -662,10 +653,8 @@ export default class SPK {
    */
   async getExistingContract(broker: string): Promise<any> {
     const contracts = await this.listContracts();
-    return contracts.find(c => 
-      c.broker === broker && 
-      c.status === 'active' &&
-      c.broca_remaining > 0
+    return contracts.find(
+      (c) => c.broker === broker && c.status === 'active' && c.broca_remaining > 0
     );
   }
 
@@ -676,12 +665,12 @@ export default class SPK {
   async directUpload(files: File[], options: UploadOptions = {}): Promise<UploadResult[]> {
     // Use batch upload functionality
     const result = await this.upload(files, options);
-    
+
     // If it's a BatchUploadResult, extract the results array
     if ('results' in result) {
       return result.results;
     }
-    
+
     // If it's a single UploadResult (shouldn't happen with array input)
     return [result];
   }
@@ -1016,11 +1005,14 @@ export default class SPK {
   /**
    * Calculate potential earnings for storing a contract
    */
-  calculateStorageEarnings(contract: {
-    size: number;
-    providers: number;
-    duration: number;
-  }, bidRate?: number): any {
+  calculateStorageEarnings(
+    contract: {
+      size: number;
+      providers: number;
+      duration: number;
+    },
+    bidRate?: number
+  ): any {
     return this.nodeOps.calculateEarnings(contract, bidRate);
   }
 
@@ -1073,9 +1065,9 @@ export { StorageProviderSelector } from './storage/provider-selector';
 export { SPKContractCreator } from './storage/contract-creator';
 
 // Export storage node operations types
-export { 
+export {
   NodeOperations,
   StorageContract,
   NodeStatus,
-  ExtendResult
+  ExtendResult,
 } from './storage/node-operations';

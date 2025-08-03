@@ -256,13 +256,18 @@ export class NetworkAPI {
   /**
    * Get node rankings by various metrics
    */
-  async getNodeRankings(metric: 'reliability' | 'uptime' | 'capacity' | 'reputation' = 'reliability', limit: number = 50): Promise<Array<{
-    rank: number;
-    username: string;
-    nodeId: string;
-    score: number;
-    metrics: any;
-  }>> {
+  async getNodeRankings(
+    metric: 'reliability' | 'uptime' | 'capacity' | 'reputation' = 'reliability',
+    limit: number = 50
+  ): Promise<
+    Array<{
+      rank: number;
+      username: string;
+      nodeId: string;
+      score: number;
+      metrics: any;
+    }>
+  > {
     const result = await this.client.get('/api/spk/network/nodes/rankings', { metric, limit });
     return result.rankings || [];
   }

@@ -22,37 +22,27 @@ export class WalletEncryption {
    * Check if Hive Keychain is available
    */
   isKeychainAvailable(): boolean {
-    return typeof window !== 'undefined' && 
-           window.hive_keychain !== undefined;
+    return typeof window !== 'undefined' && window.hive_keychain !== undefined;
   }
 
   /**
    * Encrypt memo using Hive Keychain (async)
    * Supports single recipient
    */
-  async encryptMemoKeychain(
-    account: string,
-    recipient: string,
-    memo: string
-  ): Promise<string> {
+  async encryptMemoKeychain(account: string, recipient: string, memo: string): Promise<string> {
     return new Promise((resolve, reject) => {
       if (!this.isKeychainAvailable()) {
         reject(new Error('Hive Keychain not available'));
         return;
       }
 
-      window.hive_keychain!.requestEncryptMemo(
-        account,
-        recipient,
-        memo,
-        (response: any) => {
-          if (response.success) {
-            resolve(response.result);
-          } else {
-            reject(new Error(`Keychain encryption failed: ${response.error || 'Unknown error'}`));
-          }
+      window.hive_keychain!.requestEncryptMemo(account, recipient, memo, (response: any) => {
+        if (response.success) {
+          resolve(response.result);
+        } else {
+          reject(new Error(`Keychain encryption failed: ${response.error || 'Unknown error'}`));
         }
-      );
+      });
     });
   }
 
@@ -86,7 +76,7 @@ export class WalletEncryption {
             // Multi-sig succeeded, map results
             const results = recipients.map((recipient, index) => ({
               account: recipient,
-              encryptedKey: response.result[index]
+              encryptedKey: response.result[index],
             }));
             resolve(results);
           } else {
@@ -101,21 +91,14 @@ export class WalletEncryption {
   /**
    * Encrypt memo synchronously for custom wallet implementations
    */
-  encryptMemoSync(
-    privateKey: string,
-    recipientPublicKey: string,
-    message: string
-  ): string {
+  encryptMemoSync(privateKey: string, recipientPublicKey: string, message: string): string {
     return HiveCrypto.encryptMemo(privateKey, recipientPublicKey, message);
   }
 
   /**
    * Decrypt memo synchronously for custom wallet implementations
    */
-  decryptMemoSync(
-    privateKey: string,
-    encryptedMemo: string
-  ): string {
+  decryptMemoSync(privateKey: string, encryptedMemo: string): string {
     return HiveCrypto.decryptMemo(privateKey, encryptedMemo);
   }
 
@@ -137,7 +120,7 @@ export class WalletEncryption {
         // Fall through to individual encryption below
       }
     }
-    
+
     // Fallback to individual encryption
     const results = [];
     for (const recipient of recipients) {
@@ -145,14 +128,14 @@ export class WalletEncryption {
         const encryptedKey = await this.encryptMemoKeychain(account, recipient, message);
         results.push({
           account: recipient,
-          encryptedKey
+          encryptedKey,
         });
       } catch (error) {
         console.warn(`Failed to encrypt for ${recipient}:`, error);
         // Continue with other recipients
       }
     }
-    
+
     return results;
   }
 
@@ -166,40 +149,36 @@ export class WalletEncryption {
     message: string
   ): Array<{ account: string; encryptedKey: string }> {
     const results = [];
-    
+
     for (const recipient of recipients) {
       try {
         const encryptedKey = this.encryptMemoSync(privateKey, recipient.publicKey, message);
         results.push({
           account: recipient.account,
-          encryptedKey
+          encryptedKey,
         });
       } catch (error) {
         console.warn(`Failed to encrypt for ${recipient.account}:`, error);
         // Continue with other recipients
       }
     }
-    
+
     return results;
   }
 
   /**
    * Prepare encryption request UI for user confirmation
    */
-  prepareEncryptionRequestUI(
-    recipients: string[],
-    fileInfo: FileInfo
-  ): EncryptionRequestUI {
+  prepareEncryptionRequestUI(recipients: string[], fileInfo: FileInfo): EncryptionRequestUI {
     const fileSizeMB = (fileInfo.size / (1024 * 1024)).toFixed(2);
-    
+
     return {
       title: 'Encrypt File',
       message: `You are about to encrypt "${fileInfo.name}" (${fileSizeMB} MB) for the following recipients: ${recipients.join(', ')}`,
       recipients,
-      requiresConfirmation: true
+      requiresConfirmation: true,
     };
   }
-
 }
 
 // Export singleton instance

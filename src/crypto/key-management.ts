@@ -31,12 +31,12 @@ export class KeyManager {
    * Fetch memo keys for multiple accounts from Hive blockchain
    */
   async fetchMemoKeys(accounts: string[]): Promise<MemoKeyInfo[]> {
-    const uncachedAccounts = accounts.filter(acc => !this.memoKeyCache.has(acc));
-    
+    const uncachedAccounts = accounts.filter((acc) => !this.memoKeyCache.has(acc));
+
     if (uncachedAccounts.length > 0) {
       try {
         const hiveAccounts = await HiveAPI.getAccounts(uncachedAccounts);
-        
+
         // Cache the results
         for (const account of hiveAccounts) {
           if (account && account.memo_key) {
@@ -47,13 +47,13 @@ export class KeyManager {
         console.error('Failed to fetch accounts from Hive:', error);
       }
     }
-    
+
     // Return all requested accounts that we have keys for
     return accounts
-      .filter(acc => this.memoKeyCache.has(acc))
-      .map(acc => ({
+      .filter((acc) => this.memoKeyCache.has(acc))
+      .map((acc) => ({
         account: acc,
-        memoKey: this.memoKeyCache.get(acc)!
+        memoKey: this.memoKeyCache.get(acc)!,
       }));
   }
 
@@ -74,14 +74,14 @@ export class KeyManager {
     // Export the AES key
     const rawKey = await crypto.subtle.exportKey('raw', aesKey);
     const keyData = Buffer.from(rawKey).toString('base64');
-    
+
     return {
       type: 'encrypt_memo',
-      recipients: recipients.map(r => r.account),
+      recipients: recipients.map((r) => r.account),
       keyData: {
         algorithm: 'AES-256-GCM',
-        key: keyData
-      }
+        key: keyData,
+      },
     };
   }
 
@@ -94,14 +94,14 @@ export class KeyManager {
     if (!response.success) {
       throw new Error(`Wallet encryption failed: ${response.error || 'Unknown error'}`);
     }
-    
+
     if (!response.encryptedKeys) {
       throw new Error('No encrypted keys in wallet response');
     }
-    
-    return response.encryptedKeys.map(item => ({
+
+    return response.encryptedKeys.map((item) => ({
       account: item.account,
-      encryptedKey: item.encryptedMemo
+      encryptedKey: item.encryptedMemo,
     }));
   }
 

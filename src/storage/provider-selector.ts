@@ -37,13 +37,9 @@ export class StorageProviderSelector {
 
   constructor(apiUrl: string = 'https://spktest.dlux.io') {
     this.apiUrl = apiUrl;
-    
+
     // Known problematic nodes to skip
-    this.skipNodes = new Set([
-      'nathansenn.spk.tv',
-      'blurtopian.com',
-      'actifit.io'
-    ]);
+    this.skipNodes = new Set(['nathansenn.spk.tv', 'blurtopian.com', 'actifit.io']);
   }
 
   /**
@@ -53,7 +49,7 @@ export class StorageProviderSelector {
     try {
       const response = await fetch(`${this.apiUrl}/services/IPFS`);
       const data = await response.json();
-      
+
       // Process provider list
       if (data.providers) {
         for (const [node, idString] of Object.entries(data.providers)) {
@@ -61,12 +57,12 @@ export class StorageProviderSelector {
           this.providers[node] = ids;
         }
       }
-      
+
       // Process services
       if (data.services) {
         this.services = data.services;
       }
-      
+
       console.log(`Found ${Object.keys(this.providers).length} IPFS providers`);
       return true;
     } catch (error) {
@@ -79,9 +75,7 @@ export class StorageProviderSelector {
    * Check if provider should be skipped
    */
   shouldSkipProvider(providerUrl: string): boolean {
-    return Array.from(this.skipNodes).some(badNode => 
-      providerUrl.includes(badNode)
-    );
+    return Array.from(this.skipNodes).some((badNode) => providerUrl.includes(badNode));
   }
 
   /**
@@ -89,30 +83,29 @@ export class StorageProviderSelector {
    */
   async fetchAllProviderStats(): Promise<void> {
     const statsPromises: Promise<any>[] = [];
-    
+
     for (const serviceGroup of this.services) {
       for (const [nodeId, service] of Object.entries(serviceGroup)) {
         const providerUrl = (service as any).a || (service as any).api;
-        
+
         if (!providerUrl) continue;
-        
+
         // Skip known problematic nodes
         if (this.shouldSkipProvider(providerUrl)) {
           console.log(`Skipping known problematic provider: ${providerUrl}`);
           continue;
         }
-        
+
         // Fetch stats with timeout
-        const statsPromise = this.fetchProviderStats(nodeId, providerUrl)
-          .catch(error => {
-            console.debug(`Provider ${nodeId} stats fetch failed:`, error.message);
-            return null;
-          });
-        
+        const statsPromise = this.fetchProviderStats(nodeId, providerUrl).catch((error) => {
+          console.debug(`Provider ${nodeId} stats fetch failed:`, error.message);
+          return null;
+        });
+
         statsPromises.push(statsPromise);
       }
     }
-    
+
     await Promise.all(statsPromises);
     console.log(`Fetched stats for ${Object.keys(this.providerStats).length} providers`);
   }
@@ -123,28 +116,28 @@ export class StorageProviderSelector {
   async fetchProviderStats(nodeId: string, providerUrl: string): Promise<ProviderStats | null> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
+
     try {
-      const response = await fetch(`${providerUrl}/upload-stats`, { 
+      const response = await fetch(`${providerUrl}/upload-stats`, {
         signal: controller.signal,
         headers: {
-          'Accept': 'application/json'
-        }
+          Accept: 'application/json',
+        },
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data && (data.node || nodeId)) {
         this.providerStats[data.node || nodeId] = {
           ...data,
           api: providerUrl,
-          nodeId: nodeId
+          nodeId: nodeId,
         };
         return data;
       }
@@ -162,14 +155,14 @@ export class StorageProviderSelector {
    */
   getHealthyProviders(requiredSize: number, safetyMultiplier: number = 2): HealthyProvider[] {
     const healthyProviders: HealthyProvider[] = [];
-    
+
     for (const [nodeId, stats] of Object.entries(this.providerStats)) {
       try {
         const maxStorage = BigInt(stats.StorageMax || 0);
         const repoSize = BigInt(stats.RepoSize || 0);
         const freeSpace = maxStorage - repoSize;
         const requiredSpace = BigInt(requiredSize) * BigInt(safetyMultiplier);
-        
+
         if (freeSpace >= requiredSpace) {
           healthyProviders.push({
             nodeId,
@@ -178,17 +171,17 @@ export class StorageProviderSelector {
             totalSpace: Number(maxStorage),
             usedSpace: Number(repoSize),
             freeSpaceRatio: Number(freeSpace) / Number(maxStorage),
-            stats
+            stats,
           });
         }
       } catch (error) {
         console.debug(`Error processing stats for ${nodeId}:`, error);
       }
     }
-    
+
     // Sort by free space ratio (most free space percentage first)
     healthyProviders.sort((a, b) => b.freeSpaceRatio - a.freeSpaceRatio);
-    
+
     return healthyProviders;
   }
 
@@ -201,13 +194,13 @@ export class StorageProviderSelector {
       await this.fetchProviders();
       await this.fetchAllProviderStats();
     }
-    
+
     const healthyProviders = this.getHealthyProviders(requiredSize);
-    
+
     if (healthyProviders.length === 0) {
       throw new Error('No healthy storage providers with sufficient space available');
     }
-    
+
     // Return the best provider (most free space ratio)
     return healthyProviders[0];
   }
@@ -218,13 +211,13 @@ export class StorageProviderSelector {
   getProviderIcon(nodeId: string, requiredSize: number): string {
     const stats = this.providerStats[nodeId];
     if (!stats) return '❓';
-    
+
     try {
       const maxStorage = BigInt(stats.StorageMax || 0);
       const repoSize = BigInt(stats.RepoSize || 0);
       const freeSpace = maxStorage - repoSize;
       const ratio = Number(freeSpace) / requiredSize;
-      
+
       if (ratio >= 100) return '✅';
       if (ratio >= 2) return '⚠️';
       return '❌';
@@ -238,13 +231,13 @@ export class StorageProviderSelector {
    */
   formatBytes(bytes: number, decimals: number = 2): string {
     if (bytes === 0) return '0 Bytes';
-    
+
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
-    
+
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
+
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
   }
 }

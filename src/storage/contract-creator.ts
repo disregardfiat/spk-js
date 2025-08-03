@@ -67,36 +67,38 @@ export class SPKContractCreator {
     try {
       // Refresh account data to get latest contracts
       await this.spk.refresh();
-      
+
       // Check channels first (this is where contracts are stored)
       if (this.spk.channels && this.spk.channels[this.spk.username]) {
         console.log('Checking channels for existing contracts...');
         const userChannels = this.spk.channels[this.spk.username];
-        
+
         for (const [, contract] of Object.entries(userChannels)) {
           const c = contract as any;
           console.log(`Checking contract ${c.i}: r=${c.r}, a=${c.a}`);
-          
+
           // Check if contract has space
           // a = available bytes
           // r = BROCA cost (not space!)
           // t = account (to/uploader)
           // i = contract ID
           const availableSpace = c.a || 0;
-          
+
           // Check if there's enough space for the new file
           if (availableSpace >= requiredSize) {
             console.log(`Found existing contract ${c.i} with ${availableSpace} bytes available`);
             return {
               ...c,
-              remainingSpace: availableSpace
+              remainingSpace: availableSpace,
             };
           } else {
-            console.log(`Contract ${c.i} has insufficient space: ${availableSpace} bytes available, need ${requiredSize} bytes`);
+            console.log(
+              `Contract ${c.i} has insufficient space: ${availableSpace} bytes available, need ${requiredSize} bytes`
+            );
           }
         }
       }
-      
+
       // Also check file_contracts if it exists
       if (this.spk.file_contracts && Object.keys(this.spk.file_contracts).length > 0) {
         console.log('Checking file_contracts...');
@@ -106,19 +108,21 @@ export class SPKContractCreator {
             const usedSpace = c.t || 0;
             const totalSpace = c.r || 0;
             const remainingSpace = totalSpace - usedSpace;
-            
+
             if (remainingSpace >= requiredSize) {
-              console.log(`Found existing contract ${contractId} with ${remainingSpace} bytes available`);
+              console.log(
+                `Found existing contract ${contractId} with ${remainingSpace} bytes available`
+              );
               return {
                 ...c,
                 i: contractId,
-                remainingSpace
+                remainingSpace,
               };
             }
           }
         }
       }
-      
+
       return null;
     } catch (error) {
       console.warn('Error checking existing contracts:', error);
@@ -129,19 +133,22 @@ export class SPKContractCreator {
   /**
    * Create a storage contract for files
    */
-  async createStorageContract(totalSize: number, options: ContractOptions = {}): Promise<ContractResult> {
+  async createStorageContract(
+    totalSize: number,
+    options: ContractOptions = {}
+  ): Promise<ContractResult> {
     try {
       // First check if we can reuse an existing contract
       const existingContract = await this.findOpenContract(totalSize);
       if (existingContract && !options.forceNew) {
         console.log('Reusing existing contract:', existingContract.i);
-        
+
         // Get provider details from the existing contract
         const provider = {
           nodeId: existingContract.b || existingContract.broker,
-          api: existingContract.api || `https://${existingContract.b || existingContract.broker}`
+          api: existingContract.api || `https://${existingContract.b || existingContract.broker}`,
         };
-        
+
         return {
           success: true,
           contractId: existingContract.i,
@@ -151,56 +158,64 @@ export class SPKContractCreator {
           size: totalSize,
           duration: 30,
           reused: true,
-          existingContract // Include the full contract object
+          existingContract, // Include the full contract object
         };
       }
       // Calculate BROCA cost
       const brocaAmount = await this.calculateBrocaCost(totalSize, options.duration || 30);
-      
+
       // Check BROCA balance
       const availableBroca = await this.spk.calculateBroca();
       if (brocaAmount > availableBroca) {
-        throw new Error(`Insufficient BROCA. Required: ${brocaAmount}, Available: ${availableBroca}`);
+        throw new Error(
+          `Insufficient BROCA. Required: ${brocaAmount}, Available: ${availableBroca}`
+        );
       }
-      
+
       // Select best provider
       console.log('Selecting storage provider for', this.selector.formatBytes(totalSize));
       const provider = await this.selector.selectBestProvider(totalSize);
-      console.log('Selected provider:', provider.nodeId, 'with', this.selector.formatBytes(provider.freeSpace), 'free');
-      
+      console.log(
+        'Selected provider:',
+        provider.nodeId,
+        'with',
+        this.selector.formatBytes(provider.freeSpace),
+        'free'
+      );
+
       // Prepare contract parameters
       const contractParams: any = {
-        to: this.spk.username,  // Storage contract for self
+        to: this.spk.username, // Storage contract for self
         broca: Math.ceil(brocaAmount),
         broker: provider.nodeId,
-        contract: "0"  // Standard contract (not beneficiary)
+        contract: '0', // Standard contract (not beneficiary)
       };
-      
+
       // Add beneficiary if specified
       if (options.beneficiary) {
-        contractParams.contract = "1";
+        contractParams.contract = '1';
         contractParams.slots = `${options.beneficiary.account},${Math.round(options.beneficiary.weight * 100)}`;
       }
-      
+
       // Create the blockchain transaction
       const customJson = {
         required_auths: [],
         required_posting_auths: [this.spk.username],
         id: `${this.tokenPrefix}channel_open`,
-        json: JSON.stringify(contractParams)
+        json: JSON.stringify(contractParams),
       };
-      
+
       console.log('Creating storage contract:', contractParams);
-      
+
       // Sign and broadcast the transaction
       const result = await this.broadcastTransaction(customJson);
-      
+
       // Wait a moment for the transaction to be processed
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
       // Fetch the user's contracts to find the newly created one
       const accountData = await this.spk.api.get(`/@${this.spk.username}`);
-      
+
       // Look for the contract that was just created (newest one)
       let contractId: string | null = null;
       if (accountData.channels && accountData.channels[this.spk.username]) {
@@ -214,13 +229,13 @@ export class SPKContractCreator {
           break;
         }
       }
-      
+
       if (!contractId) {
         // Fallback to generated ID if we can't find the real one
         console.warn('Could not find contract ID from blockchain, using generated ID');
         contractId = this.generateContractId(result.id);
       }
-      
+
       // Return contract details
       return {
         success: true,
@@ -228,13 +243,12 @@ export class SPKContractCreator {
         transactionId: result.id,
         provider: {
           nodeId: provider.nodeId,
-          api: provider.api
+          api: provider.api,
         },
         brocaCost: brocaAmount,
         size: totalSize,
-        duration: options.duration || 30
+        duration: options.duration || 30,
       };
-      
     } catch (error) {
       console.error('Failed to create storage contract:', error);
       throw error;
@@ -249,22 +263,21 @@ export class SPKContractCreator {
       // Get network stats for accurate calculation
       const response = await fetch(`${this.apiUrl}/`);
       const stats = await response.json();
-      
+
       // Use network's channel_bytes if available (usually 1024 bytes per BROCA)
       const bytesPerBroca = stats.result?.channel_bytes || 1024;
-      
+
       // Calculate base cost
       let brocaCost = Math.ceil(sizeInBytes / bytesPerBroca);
-      
+
       // Apply duration multiplier if not standard 30 days
       if (durationInDays !== 30) {
         brocaCost = Math.ceil(brocaCost * (durationInDays / 30));
       }
-      
+
       // Apply minimum channel cost
       const minCost = stats.result?.channel_min || 100;
       return Math.max(brocaCost, minCost);
-      
     } catch (error) {
       console.warn('Failed to get network stats, using defaults:', error);
       // Fallback calculation
@@ -281,7 +294,7 @@ export class SPKContractCreator {
     if (!this.spk.keychainAdapter) {
       throw new Error('Keychain not available');
     }
-    
+
     // Use the KeychainAdapter's broadcast method instead of calling requestBroadcast directly
     try {
       const result = await this.spk.keychainAdapter.broadcast(
@@ -324,48 +337,51 @@ export class SPKContractCreator {
   /**
    * Create a direct upload contract (for trusted uploads)
    */
-  async createDirectUploadContract(files: FileData[], options: ContractOptions = {}): Promise<DirectUploadResult> {
+  async createDirectUploadContract(
+    files: FileData[],
+    options: ContractOptions = {}
+  ): Promise<DirectUploadResult> {
     // Calculate total size
     const totalSize = files.reduce((sum, file) => sum + file.size, 0);
-    
+
     // Create base contract first
     const contract = await this.createStorageContract(totalSize, options);
-    
+
     // Prepare file metadata
-    const fileData = files.map(file => ({
+    const fileData = files.map((file) => ({
       cid: file.cid || '', // Will be calculated during upload
       size: file.size,
-      name: file.name
+      name: file.name,
     }));
-    
+
     // Create direct upload transaction
     const directUploadJson: any = {
       op: 'direct_upload',
-      c: fileData.map(f => f.cid).join(','),
-      s: fileData.map(f => f.size).join(','),
-      id: contract.contractId
+      c: fileData.map((f) => f.cid).join(','),
+      s: fileData.map((f) => f.size).join(','),
+      id: contract.contractId,
     };
-    
+
     // Add metadata if provided
     if (options.metadata) {
       directUploadJson.m = Buffer.from(JSON.stringify(options.metadata)).toString('base64');
     }
-    
+
     const customJson = {
       required_auths: [this.spk.username],
       required_posting_auths: [],
       id: `${this.tokenPrefix}direct_upload`,
-      json: JSON.stringify(directUploadJson)
+      json: JSON.stringify(directUploadJson),
     };
-    
+
     // Broadcast direct upload
     const uploadResult = await this.broadcastTransaction(customJson);
-    
+
     return {
       ...contract,
       directUpload: true,
       uploadTransactionId: uploadResult.id,
-      files: fileData
+      files: fileData,
     };
   }
 }

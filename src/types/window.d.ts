@@ -1,6 +1,6 @@
 interface HiveKeychainCallbacks {
   success: boolean;
-  result?: string | string[];  // Can be array for multi-sig
+  result?: string | string[]; // Can be array for multi-sig
   error?: string;
   message?: string;
 }
@@ -8,11 +8,11 @@ interface HiveKeychainCallbacks {
 interface HiveKeychain {
   requestEncryptMemo(
     account: string,
-    recipient: string | string[],  // Support both single and multi-sig
+    recipient: string | string[], // Support both single and multi-sig
     memo: string,
     callback: (response: HiveKeychainCallbacks) => void
   ): void;
-  
+
   requestCustomJson(
     account: string,
     id: string,
@@ -21,7 +21,7 @@ interface HiveKeychain {
     displayName: string,
     callback: (response: HiveKeychainCallbacks) => void
   ): void;
-  
+
   requestBroadcast(
     account: string,
     operations: any[],

@@ -1,10 +1,10 @@
 import { HoneygraphClient } from './honeygraph';
 
 export interface FileSearchOptions {
-  q?: string;              // Query string for name search
-  tags?: string[];         // Tags to filter by
-  owner?: string;          // Owner username
-  limit?: number;          // Result limit
+  q?: string; // Query string for name search
+  tags?: string[]; // Tags to filter by
+  owner?: string; // Owner username
+  limit?: number; // Result limit
   tagLogic?: 'AND' | 'OR'; // How to combine tags
 }
 
@@ -96,15 +96,15 @@ export class FileSearchAPI {
    */
   async searchFiles(options: FileSearchOptions): Promise<FileSearchResult[]> {
     const params: any = {};
-    
+
     if (options.q) params.q = options.q;
     if (options.owner) params.owner = options.owner;
     if (options.limit) params.limit = options.limit;
-    
+
     if (options.tags && options.tags.length > 0) {
       params.tags = options.tags.join(',');
     }
-    
+
     if (options.tagLogic) {
       params.tagLogic = options.tagLogic;
     }
@@ -148,7 +148,7 @@ export class FileSearchAPI {
   async getFilesByPath(owner: string, path: string): Promise<FileSearchResult[]> {
     const result = await this.client.get('/api/spk/files/by-path', {
       owner,
-      path
+      path,
     });
     return result.files || [];
   }
@@ -174,7 +174,7 @@ export class FileSearchAPI {
   async searchByMimeType(mimeType: string, limit: number = 50): Promise<FileSearchResult[]> {
     const result = await this.client.get('/api/spk/files/by-type', {
       mimeType,
-      limit
+      limit,
     });
     return result.files || [];
   }
@@ -185,7 +185,7 @@ export class FileSearchAPI {
   async getExpiringFiles(days: number = 7, owner?: string): Promise<FileSearchResult[]> {
     const params: any = { days };
     if (owner) params.owner = owner;
-    
+
     const result = await this.client.get('/api/spk/files/expiring', params);
     return result.files || [];
   }
@@ -193,10 +193,13 @@ export class FileSearchAPI {
   /**
    * Get popular files
    */
-  async getPopularFiles(timeframe: '24h' | '7d' | '30d' = '7d', limit: number = 50): Promise<FileSearchResult[]> {
+  async getPopularFiles(
+    timeframe: '24h' | '7d' | '30d' = '7d',
+    limit: number = 50
+  ): Promise<FileSearchResult[]> {
     const result = await this.client.get('/api/spk/files/popular', {
       timeframe,
-      limit
+      limit,
     });
     return result.files || [];
   }
@@ -204,15 +207,20 @@ export class FileSearchAPI {
   /**
    * Get file versions/history
    */
-  async getFileVersions(path: string, owner: string): Promise<Array<{
-    cid: string;
-    uploadedAt: string;
-    size: number;
-    contractId: string;
-  }>> {
+  async getFileVersions(
+    path: string,
+    owner: string
+  ): Promise<
+    Array<{
+      cid: string;
+      uploadedAt: string;
+      size: number;
+      contractId: string;
+    }>
+  > {
     const result = await this.client.get('/api/spk/file/versions', {
       path,
-      owner
+      owner,
     });
     return result.versions || [];
   }

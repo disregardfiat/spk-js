@@ -229,7 +229,10 @@ export class StorageAPI {
   /**
    * Get storage node rankings
    */
-  async getStorageNodeRankings(metric: 'reliability' | 'capacity' | 'earnings' = 'reliability', limit: number = 50): Promise<any[]> {
+  async getStorageNodeRankings(
+    metric: 'reliability' | 'capacity' | 'earnings' = 'reliability',
+    limit: number = 50
+  ): Promise<any[]> {
     const result = await this.client.get('/api/spk/storage/nodes/rankings', { metric, limit });
     return result.nodes || [];
   }
@@ -244,14 +247,17 @@ export class StorageAPI {
   /**
    * Get recommended bid rate for a node
    */
-  async getRecommendedBidRate(nodeCapacity: number, targetWinRate: number = 80): Promise<{
+  async getRecommendedBidRate(
+    nodeCapacity: number,
+    targetWinRate: number = 80
+  ): Promise<{
     recommendedBid: number;
     estimatedWins: number;
     competitionLevel: string;
   }> {
     return this.client.get('/api/spk/storage/recommend-bid', {
       capacity: nodeCapacity,
-      targetWinRate
+      targetWinRate,
     });
   }
 

@@ -11,7 +11,7 @@ export class SPKAccount {
   public node: string;
   public api: SPKAPI;
   public hasKeychain: boolean = false;
-  
+
   // Account data
   public balance: number = 0;
   public spk: number = 0;
@@ -25,7 +25,7 @@ export class SPKAccount {
   public head_block: number = 0;
   public liq_broca: number = 0;
   public pow_broca: number = 0;
-  
+
   // Additional properties from dlux-iov
   public gov: number = 0;
   public spk_block: number = 0;
@@ -35,7 +35,7 @@ export class SPKAccount {
   public power_downs: Record<string, any> = {};
   public drop: { last_claim: number; availible: { amount: number } } = {
     last_claim: 0,
-    availible: { amount: 0 }
+    availible: { amount: 0 },
   };
   public claim: number = 0;
   public tick: number = 0.01;
@@ -50,7 +50,7 @@ export class SPKAccount {
     this.node = config.node;
     this.api = new SPKAPI(config.node, config.timeout, config.maxRetries);
     this.protocol = new ProtocolManager(config.node);
-    
+
     if (config.keychain) {
       this.keychainAdapter = new KeychainAdapter(config.keychain);
       this.hasKeychain = true;
@@ -70,7 +70,7 @@ export class SPKAccount {
 
       // Load account data
       const accountData = await this.api.get(`/@${this.username}`);
-      
+
       if (!accountData) {
         throw new Error('Account not found');
       }
@@ -104,10 +104,10 @@ export class SPKAccount {
       const brocaCredits = await this.calculateBroca();
       const stats = await this.api.get('/stats');
       const channelBytes = stats?.channel_bytes || 1024; // Default to 1KB per BROCA
-      
+
       // BROCA credits * channel_bytes = total bytes available
       const totalBytes = brocaCredits * channelBytes;
-      
+
       // Format as human-readable size
       if (totalBytes < 1024) {
         return `${totalBytes}B`;
@@ -141,7 +141,7 @@ export class SPKAccount {
     try {
       const data = await this.api.get(`/@${user}`);
       data.tick = data.tick || 0.01;
-      
+
       if (user === this.username) {
         // Update instance properties
         this.behind = data.behind;
@@ -155,7 +155,7 @@ export class SPKAccount {
         this.head_block = data.head_block;
         Object.assign(this, data);
       }
-      
+
       return data;
     } catch (error: any) {
       throw new Error(`Failed to get token user: ${error.message}`);
@@ -170,40 +170,39 @@ export class SPKAccount {
     try {
       const data = await this.api.get(`/@${user}`);
       data.tick = data.tick || 0.01;
-      
+
       if (user === this.username) {
         // Process power downs
         data.powerDowns = Object.keys(data.power_downs || {});
         for (let i = 0; i < data.powerDowns.length; i++) {
           data.powerDowns[i] = data.powerDowns[i].split(':')[0];
         }
-        
+
         // Update instance with all data
         Object.assign(this, data);
-        
+
         // Pending rewards calculation removed
-        
+
         // Ensure granted and granting have default values
         if (!this.granted.t) this.granted.t = 0;
         if (!this.granting.t) this.granting.t = 0;
       }
-      
+
       return data;
     } catch (error: any) {
       throw new Error(`Failed to get SPK API data: ${error.message}`);
     }
   }
 
-
   async calculateBroca(currentBlock?: number): Promise<number> {
     if (!currentBlock) currentBlock = this.head_block;
-    
+
     // Import and use the proper broca_calc method
     const { broca_calc } = await import('../wallet/calculations');
-    
+
     // Default broca_refill value from dlux-iov
     const broca_refill = 144000;
-    
+
     // Use pow_broca (BROCA Power) for the calculation
     return broca_calc(this.broca, broca_refill, this.pow_broca, currentBlock);
   }
@@ -232,7 +231,7 @@ export class SPKAccount {
 
     const customJsonId = this.protocol.getCustomJsonId('LARYNX', 'send');
     const amountDisplay = this.protocol.formatAmount('LARYNX', amount);
-    
+
     return this.keychainAdapter.broadcastCustomJson(
       this.username,
       customJsonId,
@@ -260,7 +259,7 @@ export class SPKAccount {
 
     const customJsonId = this.protocol.getCustomJsonId('SPK', 'send');
     const amountDisplay = this.protocol.formatAmount('SPK', amount);
-    
+
     return this.keychainAdapter.broadcastCustomJson(
       this.username,
       customJsonId,
@@ -286,7 +285,7 @@ export class SPKAccount {
 
     const customJsonId = this.protocol.getCustomJsonId('LARYNX', 'power_up');
     const amountDisplay = this.protocol.formatAmount('LARYNX', amount);
-    
+
     return this.keychainAdapter.broadcastCustomJson(
       this.username,
       customJsonId,
@@ -308,7 +307,7 @@ export class SPKAccount {
 
     const customJsonId = this.protocol.getCustomJsonId('LARYNX', 'power_down');
     const amountDisplay = this.protocol.formatAmount('LARYNX', amount);
-    
+
     return this.keychainAdapter.broadcastCustomJson(
       this.username,
       customJsonId,
@@ -362,11 +361,7 @@ export class SPKAccount {
     }
 
     try {
-      const { signature } = await this.keychainAdapter.sign(
-        this.username,
-        message,
-        keyType
-      );
+      const { signature } = await this.keychainAdapter.sign(this.username, message, keyType);
 
       return {
         account: this.username,

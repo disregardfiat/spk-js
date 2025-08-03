@@ -57,7 +57,7 @@ export class NodeOperations {
     const customJsonId = 'spk-register-authority';
     const json = {
       pubKey,
-      from: this.account.username
+      from: this.account.username,
     };
 
     try {
@@ -71,7 +71,7 @@ export class NodeOperations {
 
       return {
         id: result.id,
-        success: true
+        success: true,
       };
     } catch (error: any) {
       throw new Error(`Authority registration failed: ${error.message}`);
@@ -114,7 +114,7 @@ export class NodeOperations {
     const customJsonId = 'spk-store';
     const json = {
       items: validContracts,
-      from: this.account.username
+      from: this.account.username,
     };
 
     try {
@@ -129,7 +129,7 @@ export class NodeOperations {
       return {
         success: true,
         stored: validContracts,
-        id: result.id
+        id: result.id,
       };
     } catch (error: any) {
       throw new Error(`Store files failed: ${error.message}`);
@@ -169,7 +169,7 @@ export class NodeOperations {
     const customJsonId = 'spk-remove';
     const json = {
       items: validContracts,
-      from: this.account.username
+      from: this.account.username,
     };
 
     try {
@@ -184,7 +184,7 @@ export class NodeOperations {
       return {
         success: true,
         removed: validContracts,
-        id: result.id
+        id: result.id,
       };
     } catch (error: any) {
       throw new Error(`Remove files failed: ${error.message}`);
@@ -236,7 +236,7 @@ export class NodeOperations {
       file_owner: fileOwner,
       broca: brocaAmount,
       power,
-      from: this.account.username
+      from: this.account.username,
     };
 
     try {
@@ -252,7 +252,7 @@ export class NodeOperations {
         success: true,
         id: result.id,
         contractId,
-        extendedBy: blocksAdditional
+        extendedBy: blocksAdditional,
       };
     } catch (error: any) {
       throw new Error(`Extend contract failed: ${error.message}`);
@@ -265,17 +265,17 @@ export class NodeOperations {
   async getNodeStatus(): Promise<NodeStatus> {
     try {
       const services = await this.api.get(`/services/${this.account.username}/IPFS`);
-      
+
       if (services && services.IPFS) {
         return {
           registered: true,
           service: 'IPFS',
           domain: services.IPFS.a,
           bidRate: services.IPFS.b,
-          timestamp: services.IPFS.t
+          timestamp: services.IPFS.t,
         };
       }
-      
+
       return { registered: false };
     } catch (error) {
       return { registered: false };
@@ -287,21 +287,21 @@ export class NodeOperations {
    */
   async getStoredContracts(): Promise<StorageContract[]> {
     const storing = await this.api.get(`/@${this.account.username}/storing`);
-    
+
     if (!storing) {
       return [];
     }
 
     const contracts: StorageContract[] = [];
-    
+
     for (const [contractId, contract] of Object.entries(storing)) {
       if (typeof contract === 'object' && contract !== null) {
         const typedContract = contract as any;
-        
+
         // Check if this node is storing the contract
         let isStoring = false;
         let nodePosition = 0;
-        
+
         if (typedContract.n) {
           for (const [pos, node] of Object.entries(typedContract.n)) {
             if (node === this.account.username) {
@@ -311,7 +311,7 @@ export class NodeOperations {
             }
           }
         }
-        
+
         contracts.push({
           id: contractId,
           owner: typedContract.t,
@@ -319,11 +319,11 @@ export class NodeOperations {
           providers: typedContract.p || 0,
           expiryBlock: parseInt(typedContract.e?.split(':')[0] || '0'),
           isStoring,
-          nodePosition
+          nodePosition,
         });
       }
     }
-    
+
     return contracts;
   }
 
@@ -332,7 +332,7 @@ export class NodeOperations {
    */
   async getAvailableContracts(limit: number = 100): Promise<StorageContract[]> {
     const contracts = await this.api.get(`/api/contracts/available?limit=${limit}`);
-    
+
     if (!contracts) {
       return [];
     }
@@ -344,14 +344,17 @@ export class NodeOperations {
       providers: Object.keys(contract.n || {}).length,
       expiryBlock: parseInt(contract.e?.split(':')[0] || '0'),
       isStoring: false,
-      needed: contract.p - Object.keys(contract.n || {}).length
+      needed: contract.p - Object.keys(contract.n || {}).length,
     }));
   }
 
   /**
    * Batch store multiple contracts efficiently
    */
-  async batchStore(contractIds: string[], chunkSize: number = 10): Promise<{
+  async batchStore(
+    contractIds: string[],
+    chunkSize: number = 10
+  ): Promise<{
     success: boolean;
     stored: string[];
     failed: string[];
@@ -364,7 +367,7 @@ export class NodeOperations {
     // Process in chunks
     for (let i = 0; i < contractIds.length; i += chunkSize) {
       const chunk = contractIds.slice(i, i + chunkSize);
-      
+
       try {
         const result = await this.storeFiles(chunk);
         stored.push(...result.stored);
@@ -373,10 +376,10 @@ export class NodeOperations {
         console.error(`Failed to store chunk ${i / chunkSize + 1}:`, error);
         failed.push(...chunk);
       }
-      
+
       // Rate limiting - wait between chunks
       if (i + chunkSize < contractIds.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
@@ -384,18 +387,21 @@ export class NodeOperations {
       success: failed.length === 0,
       stored,
       failed,
-      transactions
+      transactions,
     };
   }
 
   /**
    * Calculate potential earnings for storing a contract
    */
-  calculateEarnings(contract: {
-    size: number;
-    providers: number;
-    duration: number; // blocks
-  }, bidRate: number = 500): {
+  calculateEarnings(
+    contract: {
+      size: number;
+      providers: number;
+      duration: number; // blocks
+    },
+    bidRate: number = 500
+  ): {
     totalBroca: number;
     dailyBroca: number;
     monthlyBroca: number;
@@ -403,8 +409,9 @@ export class NodeOperations {
     // Simplified calculation - actual earnings depend on network factors
     const blocksPerDay = 28800;
     const daysInMonth = 30;
-    
-    const brocaPerBlock = (contract.size * bidRate) / (1024 * 1024 * contract.providers * blocksPerDay);
+
+    const brocaPerBlock =
+      (contract.size * bidRate) / (1024 * 1024 * contract.providers * blocksPerDay);
     const totalBroca = brocaPerBlock * contract.duration;
     const dailyBroca = brocaPerBlock * blocksPerDay;
     const monthlyBroca = dailyBroca * daysInMonth;
@@ -412,8 +419,7 @@ export class NodeOperations {
     return {
       totalBroca: Math.floor(totalBroca),
       dailyBroca: Math.floor(dailyBroca),
-      monthlyBroca: Math.floor(monthlyBroca)
+      monthlyBroca: Math.floor(monthlyBroca),
     };
   }
-
 }

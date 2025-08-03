@@ -1,9 +1,4 @@
-import { 
-  FileSystemEntry, 
-  DirectoryListing, 
-  FileAccess, 
-  FileSystemOptions 
-} from './types';
+import { FileSystemEntry, DirectoryListing, FileAccess, FileSystemOptions } from './types';
 
 export class FileSystem {
   private options: FileSystemOptions;
@@ -13,7 +8,7 @@ export class FileSystem {
     this.options = {
       baseUrl: options?.baseUrl || 'https://honeygraph.dlux.io',
       gateway: options?.gateway || 'https://ipfs.dlux.io',
-      timeout: options?.timeout || 30000
+      timeout: options?.timeout || 30000,
     };
   }
 
@@ -28,9 +23,9 @@ export class FileSystem {
     const response = await fetch(`${this.options.baseUrl}/fs/${username}${cleanPath}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json'
+        Accept: 'application/json',
       },
-      redirect: 'manual'
+      redirect: 'manual',
     });
 
     // Handle file redirects
@@ -48,7 +43,7 @@ export class FileSystem {
         blockNumber: parseInt(blockNumber!),
         storageNode: storageNode!,
         gatewayUrl: location!,
-        gatewayPriority: gatewayPriority || 'public'
+        gatewayPriority: gatewayPriority || 'public',
       };
     }
 
@@ -70,8 +65,8 @@ export class FileSystem {
     const response = await fetch(`${this.options.baseUrl}/fse/${username}${cleanPath}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json'
-      }
+        Accept: 'application/json',
+      },
     });
 
     if (!response.ok) {
@@ -92,8 +87,8 @@ export class FileSystem {
     const response = await fetch(`${this.options.baseUrl}/fss/${username}${cleanPath}`, {
       method: 'GET',
       headers: {
-        'Accept': 'application/json'
-      }
+        Accept: 'application/json',
+      },
     });
 
     if (!response.ok) {
@@ -110,8 +105,8 @@ export class FileSystem {
    * @returns The URL to access the file
    */
   async getFileUrl(username: string, path: string): Promise<string> {
-    const fileAccess = await this.browse(username, path) as FileAccess;
-    
+    const fileAccess = (await this.browse(username, path)) as FileAccess;
+
     if (!fileAccess.gatewayUrl) {
       throw new Error('File not found or not accessible');
     }
@@ -125,13 +120,22 @@ export class FileSystem {
    * @returns List of preset folders
    */
   async getPresetFolders(username: string): Promise<FileSystemEntry[]> {
-    const rootListing = await this.browse(username, '/') as DirectoryListing;
-    
+    const rootListing = (await this.browse(username, '/')) as DirectoryListing;
+
     // Filter for known preset folders
-    const presetFolders = ['Documents', 'Images', 'Videos', 'Music', 'Archives', 'Code', 'Trash', 'Misc'];
-    
-    return rootListing.contents.filter(entry => 
-      entry.type === 'directory' && presetFolders.includes(entry.name)
+    const presetFolders = [
+      'Documents',
+      'Images',
+      'Videos',
+      'Music',
+      'Archives',
+      'Code',
+      'Trash',
+      'Misc',
+    ];
+
+    return rootListing.contents.filter(
+      (entry) => entry.type === 'directory' && presetFolders.includes(entry.name)
     );
   }
 
@@ -142,17 +146,21 @@ export class FileSystem {
    * @param path - Starting path for search (default: '/')
    * @returns List of matching files
    */
-  async searchFiles(username: string, pattern: string, path: string = '/'): Promise<FileSystemEntry[]> {
+  async searchFiles(
+    username: string,
+    pattern: string,
+    path: string = '/'
+  ): Promise<FileSystemEntry[]> {
     // This would need backend support or recursive client-side traversal
     // For now, we'll implement a simple single-directory search
-    const listing = await this.browse(username, path) as DirectoryListing;
-    
+    const listing = (await this.browse(username, path)) as DirectoryListing;
+
     if (!listing.contents) {
       return [];
     }
 
     const regex = new RegExp(pattern.replace(/\*/g, '.*'), 'i');
-    return listing.contents.filter(entry => regex.test(entry.name));
+    return listing.contents.filter((entry) => regex.test(entry.name));
   }
 
   /**
@@ -164,11 +172,11 @@ export class FileSystem {
   async getFileMetadata(username: string, path: string): Promise<FileSystemEntry> {
     const parentPath = path.substring(0, path.lastIndexOf('/')) || '/';
     const fileName = path.substring(path.lastIndexOf('/') + 1);
-    
-    const listing = await this.browse(username, parentPath) as DirectoryListing;
-    
-    const file = listing.contents.find(entry => entry.name === fileName);
-    
+
+    const listing = (await this.browse(username, parentPath)) as DirectoryListing;
+
+    const file = listing.contents.find((entry) => entry.name === fileName);
+
     if (!file) {
       throw new Error('File not found');
     }
@@ -198,8 +206,8 @@ export class FileSystem {
    * @returns Total size in bytes
    */
   async getDirectorySize(username: string, path: string = '/'): Promise<number> {
-    const listing = await this.browse(username, path) as DirectoryListing;
-    
+    const listing = (await this.browse(username, path)) as DirectoryListing;
+
     if (!listing.contents) {
       return 0;
     }
@@ -224,32 +232,29 @@ export class FileSystem {
 
       try {
         const result = await this.browse(username, currentPath);
-        
+
         if ('contents' in result) {
           // It's a directory
           const children = await Promise.all(
             result.contents
-              .filter(entry => entry.type === 'directory')
-              .map(async entry => ({
+              .filter((entry) => entry.type === 'directory')
+              .map(async (entry) => ({
                 ...entry,
-                children: await buildTree(entry.path, depth + 1)
+                children: await buildTree(entry.path, depth + 1),
               }))
           );
 
           return {
             path: currentPath,
             type: 'directory',
-            children: [
-              ...children,
-              ...result.contents.filter(entry => entry.type === 'file')
-            ]
+            children: [...children, ...result.contents.filter((entry) => entry.type === 'file')],
           };
         } else {
           // It's a file
           return {
             path: currentPath,
             type: 'file',
-            cid: result.cid
+            cid: result.cid,
           };
         }
       } catch (error) {

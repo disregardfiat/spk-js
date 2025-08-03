@@ -3,10 +3,10 @@ import { SPKAPI } from '../core/api';
 import { KeychainAdapter } from '../core/keychain-adapter';
 
 export interface DirectUploadOptions {
-  cids: string[];      // Array of IPFS CIDs
-  sizes: number[];     // Array of file sizes in bytes
-  id: string;          // Unique identifier for this upload
-  metadata?: string;   // Optional metadata string
+  cids: string[]; // Array of IPFS CIDs
+  sizes: number[]; // Array of file sizes in bytes
+  id: string; // Unique identifier for this upload
+  metadata?: string; // Optional metadata string
 }
 
 export interface DirectUploadResult {
@@ -42,7 +42,7 @@ export class DirectUpload {
         id: options.id,
         filesUploaded: 0,
         totalSize: 0,
-        error: validation.error
+        error: validation.error,
       };
     }
 
@@ -62,7 +62,7 @@ export class DirectUpload {
         id: options.id,
         filesUploaded: 0,
         totalSize,
-        error: `Insufficient BROCA. Need ${totalSize}, have ${brocaAvailable}`
+        error: `Insufficient BROCA. Need ${totalSize}, have ${brocaAvailable}`,
       };
     }
 
@@ -73,7 +73,7 @@ export class DirectUpload {
       s: options.sizes.join(','),
       id: options.id,
       m: options.metadata,
-      from: this.account.username
+      from: this.account.username,
     };
 
     try {
@@ -90,7 +90,7 @@ export class DirectUpload {
         id: options.id,
         transactionId: result.id,
         filesUploaded: options.cids.length,
-        totalSize
+        totalSize,
       };
     } catch (error: any) {
       return {
@@ -98,7 +98,7 @@ export class DirectUpload {
         id: options.id,
         filesUploaded: 0,
         totalSize,
-        error: `Direct upload failed: ${error.message}`
+        error: `Direct upload failed: ${error.message}`,
       };
     }
   }
@@ -108,15 +108,15 @@ export class DirectUpload {
    */
   async batchUpload(uploads: DirectUploadOptions[]): Promise<DirectUploadResult[]> {
     const results: DirectUploadResult[] = [];
-    
+
     for (const upload of uploads) {
       try {
         const result = await this.upload(upload);
         results.push(result);
-        
+
         // Add small delay between uploads to avoid rate limiting
         if (uploads.indexOf(upload) < uploads.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 500));
         }
       } catch (error: any) {
         results.push({
@@ -124,11 +124,11 @@ export class DirectUpload {
           id: upload.id,
           filesUploaded: 0,
           totalSize: 0,
-          error: error.message
+          error: error.message,
         });
       }
     }
-    
+
     return results;
   }
 
@@ -140,20 +140,20 @@ export class DirectUpload {
   static createMetadata(fileCount: number, tags: number[] = []): string {
     // Metadata format: "tag1,tag2,...,tag8" (8 tags max)
     // For multiple files, metadata size must be (fileCount * 4 + 1)
-    
+
     const metadataSize = fileCount * 4 + 1;
     const metadata: string[] = [];
-    
+
     // Add tags (convert to string)
     for (let i = 0; i < Math.min(tags.length, 8); i++) {
       metadata.push(tags[i].toString());
     }
-    
+
     // Pad with "1" to reach required size
     while (metadata.length < metadataSize) {
       metadata.push('1');
     }
-    
+
     return metadata.slice(0, metadataSize).join(',');
   }
 
@@ -194,11 +194,11 @@ export class DirectUpload {
     if (options.metadata) {
       const expectedSize = options.cids.length * 4 + 1;
       const actualSize = options.metadata.split(',').length;
-      
+
       if (actualSize !== expectedSize) {
-        return { 
-          valid: false, 
-          error: `Invalid metadata size. Expected ${expectedSize}, got ${actualSize}` 
+        return {
+          valid: false,
+          error: `Invalid metadata size. Expected ${expectedSize}, got ${actualSize}`,
         };
       }
     }
@@ -211,7 +211,7 @@ export class DirectUpload {
    */
   async checkExistingFiles(cids: string[]): Promise<Map<string, boolean>> {
     const exists = new Map<string, boolean>();
-    
+
     for (const cid of cids) {
       try {
         // Check if CID is already registered
@@ -222,7 +222,7 @@ export class DirectUpload {
         exists.set(cid, false);
       }
     }
-    
+
     return exists;
   }
 
@@ -249,31 +249,31 @@ export class DirectUpload {
    * Helper method to convert Files to CIDs and sizes
    */
   static async fromFiles(
-    files: File[], 
+    files: File[],
     ipfsAdd: (file: File) => Promise<{ cid: string; size: number }>,
     id?: string
   ): Promise<DirectUploadOptions> {
     const cids: string[] = [];
     const sizes: number[] = [];
-    
+
     // Generate unique ID if not provided
     const uploadId = id || `direct_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     // Add files to IPFS and collect CIDs
     for (const file of files) {
       const { cid, size } = await ipfsAdd(file);
       cids.push(cid);
       sizes.push(size);
     }
-    
+
     // Create metadata
     const metadata = DirectUpload.createMetadata(files.length);
-    
+
     return {
       cids,
       sizes,
       id: uploadId,
-      metadata
+      metadata,
     };
   }
 }

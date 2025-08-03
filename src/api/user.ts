@@ -113,27 +113,29 @@ export class UserAPI {
    */
   async getUserBalances(username: string): Promise<UserBalances> {
     const data = await this.client.getUserProfile(username, { include: ['balances'] });
-    
+
     // Convert millitokens to tokens for LARYNX and SPK
     return {
       larynx: (data.larynxBalance || 0) / 1000,
       spk: (data.spkBalance || 0) / 1000,
-      broca: data.brocaBalance || 0,  // BROCA is not in millitokens
+      broca: data.brocaBalance || 0, // BROCA is not in millitokens
       liquidBroca: data.liquidBroca || 0,
       power: (data.power || 0) / 1000,
-      powerGranted: (data.powerGranted || 0) / 1000
+      powerGranted: (data.powerGranted || 0) / 1000,
     };
   }
 
   /**
    * Get user storage contracts
    */
-  async getUserContracts(username: string): Promise<{ owned: UserContract[]; storing: StoringContract[] }> {
+  async getUserContracts(
+    username: string
+  ): Promise<{ owned: UserContract[]; storing: StoringContract[] }> {
     const data = await this.client.getUserProfile(username, { include: ['contracts'] });
-    
+
     return {
       owned: data.contracts || [],
-      storing: data.contractsStoring || []
+      storing: data.contractsStoring || [],
     };
   }
 
@@ -148,24 +150,28 @@ export class UserAPI {
   /**
    * Get user delegations
    */
-  async getUserDelegations(username: string): Promise<{ outgoing: Delegation[]; incoming: Delegation[] }> {
+  async getUserDelegations(
+    username: string
+  ): Promise<{ outgoing: Delegation[]; incoming: Delegation[] }> {
     const data = await this.client.getUserProfile(username, { include: ['delegations'] });
-    
+
     return {
       outgoing: data.delegationsOut || [],
-      incoming: data.delegationsIn || []
+      incoming: data.delegationsIn || [],
     };
   }
 
   /**
    * Get user market activity
    */
-  async getUserMarketActivity(username: string): Promise<{ nodeMarket?: NodeMarket; dexOrders: DexOrder[] }> {
+  async getUserMarketActivity(
+    username: string
+  ): Promise<{ nodeMarket?: NodeMarket; dexOrders: DexOrder[] }> {
     const data = await this.client.getUserProfile(username, { include: ['market'] });
-    
+
     return {
       nodeMarket: data.nodeMarket,
-      dexOrders: data.dexOrders || []
+      dexOrders: data.dexOrders || [],
     };
   }
 
@@ -182,8 +188,8 @@ export class UserAPI {
     }
 
     if (options?.tags && options.tags.length > 0) {
-      files = files.filter((file: UserFile) => 
-        file.tags && options.tags!.some(tag => file.tags!.includes(tag))
+      files = files.filter(
+        (file: UserFile) => file.tags && options.tags!.some((tag) => file.tags!.includes(tag))
       );
     }
 
@@ -199,7 +205,7 @@ export class UserAPI {
    */
   async getUserSummary(username: string): Promise<UserSummary> {
     const data = await this.client.getUserProfile(username);
-    
+
     const activeContracts = (data.contracts || []).filter((c: any) => c.status === 'ACTIVE').length;
     const activeServices = (data.services || []).filter((s: any) => s.active).length;
 
@@ -209,14 +215,14 @@ export class UserAPI {
         larynx: (data.larynxBalance || 0) / 1000,
         spk: (data.spkBalance || 0) / 1000,
         broca: data.brocaBalance || 0,
-        power: (data.power || 0) / 1000
+        power: (data.power || 0) / 1000,
       },
       stats: {
         totalContracts: (data.contracts || []).length,
         activeContracts,
         totalFiles: (data.files || []).length,
-        activeServices
-      }
+        activeServices,
+      },
     };
   }
 }

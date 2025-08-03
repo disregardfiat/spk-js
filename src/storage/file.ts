@@ -18,7 +18,7 @@ export interface FileMetadataItem {
   ext?: string;
   path?: string;
   thumbnail?: string;
-  tags?: number | number[];  // Can be array of numbers or single number
+  tags?: number | number[]; // Can be array of numbers or single number
   license?: string;
   labels?: string;
   autoRenew?: boolean;
@@ -70,7 +70,6 @@ export class SPKFile {
     const buffer = Buffer.from(await file.arrayBuffer());
     return Hash.of(buffer);
   }
-
 
   /**
    * Upload a file to SPK Network
@@ -134,16 +133,20 @@ export class SPKFile {
    */
   private async createContract(contractData: any): Promise<any> {
     const auth = await this.account.sign(`create_contract:${Date.now()}`);
-    
-    const response = await this.account.api.post('/api/new_contract', {
-      ...contractData,
-      username: this.account.username
-    }, auth);
-    
+
+    const response = await this.account.api.post(
+      '/api/new_contract',
+      {
+        ...contractData,
+        username: this.account.username,
+      },
+      auth
+    );
+
     if (!response || response.error) {
       throw new Error(response?.error || 'Failed to create contract');
     }
-    
+
     return response;
   }
 
@@ -169,15 +172,15 @@ export class SPKFile {
       const tempFile = new File([file], 'chunk', { type: 'application/octet-stream' });
       cid = await SPKFile.hash(tempFile);
     }
-    
+
     // Get the contract details if not provided
     if (!contract) {
       contract = await this.account.api.get(`/api/fileContract/${contractId}`);
     }
-    
+
     // Authorize the upload
     const authData = await this.authorizeUpload(contract, cid);
-    
+
     const chunkSize = options.chunkSize || 1024 * 1024; // 1MB default
     const fileSize = file.size || (file instanceof Blob ? file.size : 0);
     const chunks = Math.ceil(fileSize / chunkSize);
@@ -204,7 +207,7 @@ export class SPKFile {
 
         const start = i * chunkSize;
         const end = Math.min(start + chunkSize, fileSize);
-        
+
         let chunk: Blob;
         if (file instanceof File || file instanceof Blob) {
           chunk = file.slice(start, end);
@@ -229,7 +232,7 @@ export class SPKFile {
    */
   private async authorizeUpload(contract: any, cid: string): Promise<any> {
     const apiUrl = contract.api || 'https://ipfs.dlux.io';
-    
+
     const response = await fetch(`${apiUrl}/upload-authorize`, {
       method: 'POST',
       headers: {
@@ -238,12 +241,12 @@ export class SPKFile {
         'X-Account': contract.t,
         'X-Contract': contract.i,
         'X-Cid': cid,
-        'X-Chain': 'HIVE'
+        'X-Chain': 'HIVE',
       },
       body: JSON.stringify({
         files: contract.files,
-        meta: contract.m || {}
-      })
+        meta: contract.m || {},
+      }),
     });
 
     if (!response.ok) {
@@ -268,7 +271,7 @@ export class SPKFile {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       const formData = new FormData();
-      
+
       // Add chunk to form data
       formData.append('chunk', chunk);
 
@@ -296,13 +299,13 @@ export class SPKFile {
 
       const apiUrl = contract.api || 'https://ipfs.dlux.io';
       xhr.open('POST', `${apiUrl}/upload`);
-      
+
       // Set headers from auth data
       xhr.setRequestHeader('X-Cid', authData.cid || contract.df[0]);
       xhr.setRequestHeader('X-Contract', contract.i);
       xhr.setRequestHeader('X-Sig', contract.fosig);
       xhr.setRequestHeader('X-Account', contract.t);
-      
+
       // Only set Content-Range for chunked uploads
       if (totalSize > chunk.size) {
         xhr.setRequestHeader(
@@ -327,17 +330,20 @@ export class SPKFile {
    */
   private async encrypt(file: File, recipients: string[]): Promise<any> {
     const result = await this.encryption.encryptForUpload(file, recipients);
-    
+
     // Convert the metadata format to match the expected structure
-    const encryptedKeys = result.metadata.encryptedKeys.reduce((acc, item) => {
-      acc[item.account] = item.encryptedKey;
-      return acc;
-    }, {} as Record<string, string>);
-    
+    const encryptedKeys = result.metadata.encryptedKeys.reduce(
+      (acc, item) => {
+        acc[item.account] = item.encryptedKey;
+        return acc;
+      },
+      {} as Record<string, string>
+    );
+
     return {
       encryptedData: await result.encryptedFile.arrayBuffer(),
       encryptedKeys,
-      metadata: result.metadata
+      metadata: result.metadata,
     };
   }
 
@@ -356,7 +362,10 @@ export class SPKFile {
    * Direct upload files that are already uploaded to IPFS
    * This method creates the blockchain transaction for direct uploads
    */
-  async directUpload(fileData: Array<{ cid: string; size: number; name?: string }>, options: { metadata?: any } = {}): Promise<any> {
+  async directUpload(
+    fileData: Array<{ cid: string; size: number; name?: string }>,
+    options: { metadata?: any } = {}
+  ): Promise<any> {
     if (!Array.isArray(fileData) || fileData.length === 0) {
       throw new Error('No files provided');
     }
@@ -376,7 +385,7 @@ export class SPKFile {
 
     // Calculate BROCA cost (all uploads are 30 days)
     const brocaCost = BrocaCalculator.cost(totalSize, 30);
-    
+
     // Check if user has enough BROCA
     const availableBroca = await this.account.calculateBroca();
     if (brocaCost > availableBroca) {
@@ -384,8 +393,8 @@ export class SPKFile {
     }
 
     // Prepare CIDs and sizes for the direct_upload operation
-    const cids = fileData.map(f => f.cid).join(',');
-    const sizes = fileData.map(f => f.size).join(',');
+    const cids = fileData.map((f) => f.cid).join(',');
+    const sizes = fileData.map((f) => f.size).join(',');
 
     // Create the direct upload transaction (contract ID will be generated backend)
     const json: any = {
@@ -420,7 +429,7 @@ export class SPKFile {
         reject(new Error('Hive Keychain not found'));
         return;
       }
-      
+
       keychain.requestCustomJson(
         this.account.username,
         spkNetworkId,
@@ -434,11 +443,11 @@ export class SPKFile {
             resolve({
               success: true,
               transactionId: response.result.id,
-              files: fileData.map(f => ({
+              files: fileData.map((f) => ({
                 cid: f.cid,
                 size: f.size,
                 name: f.name,
-                url: `https://ipfs.dlux.io/ipfs/${f.cid}`
+                url: `https://ipfs.dlux.io/ipfs/${f.cid}`,
               })),
               totalSize,
               brocaCost,
@@ -459,15 +468,15 @@ export class SPKFile {
     metadata?: any
   ): string {
     const parts: string[] = [];
-    
+
     // Contract data (first part) - for direct uploads, use "1"
     parts.push('1');
-    
+
     // For each file, add 4 parts: cid, name, ext, metadata
     fileData.forEach((data, index) => {
       let baseName = data.name ? data.name.replace(/\.[^/.]+$/, '') : `file${index}`;
       let fileExt = data.name ? data.name.split('.').pop() || '' : '';
-      
+
       // Override with metadata if provided
       if (metadata?.files?.[index]) {
         baseName = metadata.files[index].name || baseName;
@@ -477,45 +486,45 @@ export class SPKFile {
         baseName = metadata.name || baseName;
         fileExt = metadata.ext || fileExt;
       }
-      
+
       parts.push(data.cid); // CID
       parts.push(baseName); // Name without extension
       parts.push(fileExt); // Extension
-      
+
       // File-specific metadata
       let fileMetadata = '';
       if (metadata) {
         if (metadata.files && metadata.files[index]) {
           const fileMeta = metadata.files[index];
-          
+
           // Convert tags to flag if present
           if (fileMeta.tags) {
-            const tagFlag = Array.isArray(fileMeta.tags) 
+            const tagFlag = Array.isArray(fileMeta.tags)
               ? fileMeta.tags.reduce((acc: number, tag: number) => acc | tag, 0)
               : fileMeta.tags;
             fileMetadata += this.encodeBase64Number(tagFlag);
           }
-          
+
           // Add other metadata fields
           if (fileMeta.labels) fileMetadata += `|${fileMeta.labels}`;
           if (fileMeta.license) fileMetadata += `|${fileMeta.license}`;
         } else if (typeof metadata === 'object' && !metadata.files) {
           // Single file metadata
           if (metadata.tags) {
-            const tagFlag = Array.isArray(metadata.tags) 
+            const tagFlag = Array.isArray(metadata.tags)
               ? metadata.tags.reduce((acc: number, tag: number) => acc | tag, 0)
               : metadata.tags;
             fileMetadata += this.encodeBase64Number(tagFlag);
           }
-          
+
           if (metadata.labels) fileMetadata += `|${metadata.labels}`;
           if (metadata.license) fileMetadata += `|${metadata.license}`;
         }
       }
-      
+
       parts.push(fileMetadata); // Metadata for this file
     });
-    
+
     return parts.join(',');
   }
 
@@ -530,97 +539,107 @@ export class SPKFile {
     brocaCost: number
   ): Promise<any> {
     const spkNetworkId = this.account.node.includes('spktest') ? 'spkcc_spktest' : 'spkcc_dlux';
-    
+
     // Split files into chunks that each create a separate direct_upload transaction
     const chunks: Array<{ files: typeof fileData; chunkIndex: number }> = [];
     let currentChunkFiles: typeof fileData = [];
     let currentChunkIndex = 0;
-    
+
     for (let i = 0; i < fileData.length; i++) {
       currentChunkFiles.push(fileData[i]);
-      
+
       // Calculate metadata for current chunk
       const chunkMetadata = this.calculateMetadataString(currentChunkFiles, {
-        files: options.metadata?.files?.slice(currentChunkIndex, i + 1)
+        files: options.metadata?.files?.slice(currentChunkIndex, i + 1),
       });
-      
+
       // Create test direct_upload JSON to check size
       const testJson = {
         op: 'direct_upload',
-        c: currentChunkFiles.map(f => f.cid).join(','),
-        s: currentChunkFiles.map(f => f.size).join(','),
-        m: chunkMetadata
+        c: currentChunkFiles.map((f) => f.cid).join(','),
+        s: currentChunkFiles.map((f) => f.size).join(','),
+        m: chunkMetadata,
       };
-      
+
       // If this chunk would be too big, save the previous chunk and start a new one
       if (JSON.stringify(testJson).length >= 7800 && currentChunkFiles.length > 1) {
         // Remove the last file and save current chunk
         const lastFile = currentChunkFiles.pop()!;
-        
+
         chunks.push({
           files: [...currentChunkFiles],
-          chunkIndex: currentChunkIndex
+          chunkIndex: currentChunkIndex,
         });
-        
+
         // Start new chunk with the file that didn't fit
         currentChunkFiles = [lastFile];
         currentChunkIndex = i;
       }
     }
-    
+
     // Add the last chunk
     if (currentChunkFiles.length > 0) {
       chunks.push({
         files: [...currentChunkFiles],
-        chunkIndex: currentChunkIndex
+        chunkIndex: currentChunkIndex,
       });
     }
-    
+
     // Broadcast all chunks as separate direct_upload transactions with delays
     const chunkResults: any[] = [];
     const allFiles: any[] = [];
-    
+
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
-      
+
       // Calculate metadata for this chunk
       const chunkMetadata = this.calculateMetadataString(chunk.files, {
-        files: options.metadata?.files?.slice(chunk.chunkIndex, chunk.chunkIndex + chunk.files.length)
+        files: options.metadata?.files?.slice(
+          chunk.chunkIndex,
+          chunk.chunkIndex + chunk.files.length
+        ),
       });
-      
+
       const chunkJson = {
         op: 'direct_upload',
-        c: chunk.files.map(f => f.cid).join(','),
-        s: chunk.files.map(f => f.size).join(','),
-        m: chunkMetadata
+        c: chunk.files.map((f) => f.cid).join(','),
+        s: chunk.files.map((f) => f.size).join(','),
+        m: chunkMetadata,
       };
-      
+
       // Broadcast this chunk
-      const result = await this.broadcastDirectUpload(chunkJson, spkNetworkId, chunk.files.length, chunk.files.reduce((sum, f) => sum + f.size, 0));
+      const result = await this.broadcastDirectUpload(
+        chunkJson,
+        spkNetworkId,
+        chunk.files.length,
+        chunk.files.reduce((sum, f) => sum + f.size, 0)
+      );
       chunkResults.push(result);
-      
+
       // Add files from this chunk to the overall result
-      allFiles.push(...chunk.files.map(f => ({
-        cid: f.cid,
-        size: f.size,
-        name: f.name,
-        url: `https://ipfs.dlux.io/ipfs/${f.cid}`
-      })));
-      
+      allFiles.push(
+        ...chunk.files.map((f) => ({
+          cid: f.cid,
+          size: f.size,
+          name: f.name,
+          url: `https://ipfs.dlux.io/ipfs/${f.cid}`,
+        }))
+      );
+
       // Add 5-second delay between chunks (except for the last one)
       if (i < chunks.length - 1) {
         await this.delay(5000);
       }
     }
-    
+
     return {
       success: true,
-      transactionIds: chunkResults.map(r => r.transactionId),
+      transactionIds: chunkResults.map((r) => r.transactionId),
       files: allFiles,
       totalSize,
       brocaCost,
       chunked: true,
-      totalChunks: chunks.length
+      totalChunks: chunks.length,
     };
   }
 
@@ -628,20 +647,25 @@ export class SPKFile {
    * Helper method to add delays between transactions
    */
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
    * Broadcast a single direct_upload transaction
    */
-  private broadcastDirectUpload(json: any, spkNetworkId: string, fileCount: number, totalSize: number): Promise<any> {
+  private broadcastDirectUpload(
+    json: any,
+    spkNetworkId: string,
+    fileCount: number,
+    totalSize: number
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
       const keychain = (window as any).hive_keychain;
       if (!keychain) {
         reject(new Error('Hive Keychain not found'));
         return;
       }
-      
+
       keychain.requestCustomJson(
         this.account.username,
         spkNetworkId,
@@ -654,7 +678,7 @@ export class SPKFile {
           } else {
             resolve({
               success: true,
-              transactionId: response.result.id
+              transactionId: response.result.id,
             });
           }
         }
@@ -666,22 +690,22 @@ export class SPKFile {
    * Encode number to Base64 using the same algorithm as honeycomb
    */
   private encodeBase64Number(num: number): string {
-    const glyphs64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=";
-    
+    const glyphs64 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=';
+
     if (isNaN(Number(num)) || num === null || num === Number.POSITIVE_INFINITY) {
-      throw new Error("The input is not valid");
+      throw new Error('The input is not valid');
     }
     if (num < 0) throw new Error("Can't represent negative numbers");
-    
+
     let residual = Math.floor(num);
-    let result = "";
-    
+    let result = '';
+
     while (residual > 0) {
       const char = residual % 64;
       result = glyphs64.charAt(char) + result;
       residual = Math.floor(residual / 64);
     }
-    
+
     return result;
   }
 }

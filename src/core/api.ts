@@ -49,12 +49,12 @@ export class SPKAPI {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
-      
+
       const response = await fetch(url, {
         ...options,
         signal: controller.signal,
       });
-      
+
       clearTimeout(timeoutId);
 
       if (!response.ok) {
@@ -69,7 +69,7 @@ export class SPKAPI {
 
       if (retries < this.maxRetries) {
         // Exponential backoff
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retries) * 1000));
+        await new Promise((resolve) => setTimeout(resolve, Math.pow(2, retries) * 1000));
         return this.request(method, endpoint, data, auth, retries + 1);
       }
 

@@ -33,11 +33,12 @@ export class Encryption {
   ) {}
 
   private get crypto() {
-    const cryptoLib = typeof globalThis !== 'undefined' && globalThis.crypto 
-      ? globalThis.crypto 
-      : typeof global !== 'undefined' && (global as any).crypto 
-      ? (global as any).crypto 
-      : null;
+    const cryptoLib =
+      typeof globalThis !== 'undefined' && globalThis.crypto
+        ? globalThis.crypto
+        : typeof global !== 'undefined' && (global as any).crypto
+          ? (global as any).crypto
+          : null;
 
     if (!cryptoLib || !cryptoLib.subtle) {
       throw new Error('Web Crypto API not available');
@@ -52,7 +53,7 @@ export class Encryption {
     return await this.crypto.subtle.generateKey(
       {
         name: 'AES-GCM',
-        length: 256
+        length: 256,
       },
       true, // extractable
       ['encrypt', 'decrypt']
@@ -65,26 +66,26 @@ export class Encryption {
   async encryptFile(file: File, key: CryptoKey): Promise<EncryptedFile> {
     // Generate a random IV for GCM
     const iv = this.crypto.getRandomValues(new Uint8Array(12));
-    
+
     // Read file data
     const fileData = await file.arrayBuffer();
-    
+
     // Encrypt the data
     const encryptedData = await this.crypto.subtle.encrypt(
       {
         name: 'AES-GCM',
-        iv: iv
+        iv: iv,
       },
       key,
       fileData
     );
-    
+
     return {
       encryptedData,
       iv,
       originalName: file.name,
       originalType: file.type,
-      originalSize: file.size
+      originalSize: file.size,
     };
   }
 
@@ -95,14 +96,14 @@ export class Encryption {
     const decryptedData = await this.crypto.subtle.decrypt(
       {
         name: 'AES-GCM',
-        iv: encrypted.iv
+        iv: encrypted.iv,
       },
       key,
       encrypted.encryptedData
     );
-    
+
     return new File([decryptedData], encrypted.originalName, {
-      type: encrypted.originalType
+      type: encrypted.originalType,
     });
   }
 
@@ -114,21 +115,21 @@ export class Encryption {
     recipients: Array<{ account: string; memoKey: string }>
   ): Promise<Array<{ account: string; encryptedKey: string; algorithm: string }>> {
     const wrappedKeys = [];
-    
+
     // Export the AES key to raw format
     const rawKey = await this.crypto.subtle.exportKey('raw', aesKey);
     const keyData = Buffer.from(rawKey).toString('base64');
-    
+
     for (const recipient of recipients) {
       // For now, we'll use the wallet interface to encrypt the key
       // In a real implementation, this would use RSA-OAEP or similar
       wrappedKeys.push({
         account: recipient.account,
         encryptedKey: `#mock-encrypted-${keyData}-for-${recipient.account}`,
-        algorithm: 'RSA-OAEP'
+        algorithm: 'RSA-OAEP',
       });
     }
-    
+
     return wrappedKeys;
   }
 
@@ -139,26 +140,26 @@ export class Encryption {
   async encryptForUpload(file: File, recipientAccounts: string[]): Promise<EncryptedUploadResult> {
     // Import wallet encryption
     const { walletEncryption } = await import('../wallet/encryption');
-    
+
     // Generate AES key for this batch of files
     const aesKey = await this.generateAESKey();
-    
+
     // Ensure signer is included in recipients (so they can decrypt their own files)
     const signerAccount = this.account || 'self';
-    const allRecipients = recipientAccounts.includes(signerAccount) 
-      ? recipientAccounts 
+    const allRecipients = recipientAccounts.includes(signerAccount)
+      ? recipientAccounts
       : [...recipientAccounts, signerAccount];
-    
+
     // Fetch memo keys for recipients
     await this.keyManager.fetchMemoKeys(allRecipients);
-    
+
     // Encrypt the file
     const encrypted = await this.encryptFile(file, aesKey);
-    
+
     // Export AES key for encryption
     const rawKey = await this.crypto.subtle.exportKey('raw', aesKey);
     const keyData = Buffer.from(rawKey).toString('base64');
-    
+
     // Use wallet to encrypt the AES key for all recipients
     // This will use multi-sig if available
     const encryptedKeys = await walletEncryption.encryptForMultipleRecipients(
@@ -166,16 +167,16 @@ export class Encryption {
       allRecipients,
       keyData
     );
-    
+
     // Create encrypted file with IV prepended
     const fileContent = new Uint8Array(encrypted.iv.length + encrypted.encryptedData.byteLength);
     fileContent.set(encrypted.iv, 0);
     fileContent.set(new Uint8Array(encrypted.encryptedData), encrypted.iv.length);
-    
+
     const encryptedFile = new File([fileContent], `${file.name}.enc`, {
-      type: 'application/octet-stream'
+      type: 'application/octet-stream',
     });
-    
+
     // Store metadata
     const metadata: EncryptionMetadata = {
       encrypted: true,
@@ -184,12 +185,12 @@ export class Encryption {
       originalName: encrypted.originalName,
       originalType: encrypted.originalType,
       encryptedKeys: encryptedKeys,
-      iv: Buffer.from(encrypted.iv).toString('base64')
+      iv: Buffer.from(encrypted.iv).toString('base64'),
     };
-    
+
     return {
       encryptedFile,
-      metadata
+      metadata,
     };
   }
 
@@ -205,13 +206,16 @@ export class Encryption {
       r: metadata.recipients,
       n: metadata.originalName,
       t: metadata.originalType,
-      k: metadata.encryptedKeys.reduce((acc, item) => {
-        acc[item.account] = item.encryptedKey;
-        return acc;
-      }, {} as Record<string, string>),
-      iv: metadata.iv
+      k: metadata.encryptedKeys.reduce(
+        (acc, item) => {
+          acc[item.account] = item.encryptedKey;
+          return acc;
+        },
+        {} as Record<string, string>
+      ),
+      iv: metadata.iv,
     };
-    
+
     // Convert to base64 encoded JSON string
     return Buffer.from(JSON.stringify(compactMetadata)).toString('base64');
   }
@@ -223,7 +227,7 @@ export class Encryption {
     try {
       const decoded = Buffer.from(metadataString, 'base64').toString('utf-8');
       const compact = JSON.parse(decoded);
-      
+
       return {
         encrypted: compact.e === 1,
         algorithm: compact.a,
@@ -232,9 +236,9 @@ export class Encryption {
         originalType: compact.t,
         encryptedKeys: Object.entries(compact.k).map(([account, encryptedKey]) => ({
           account,
-          encryptedKey: encryptedKey as string
+          encryptedKey: encryptedKey as string,
         })),
-        iv: compact.iv
+        iv: compact.iv,
       };
     } catch (error) {
       throw new Error('Invalid metadata string format');
