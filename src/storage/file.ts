@@ -353,33 +353,26 @@ export class SPKFile {
   }
 
   /**
-   * Direct upload method - uploads files directly to IPFS without broker verification
-   * This creates a completed storage contract immediately upon upload
+   * Direct upload files that are already uploaded to IPFS
+   * This method creates the blockchain transaction for direct uploads
    */
-  async directUpload(files: (File | { name: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> })[], options: { metadata?: any } = {}): Promise<any> {
-    if (!files || files.length === 0) {
+  async directUpload(fileData: Array<{ cid: string; size: number; name?: string }>, options: { metadata?: any } = {}): Promise<any> {
+    if (!Array.isArray(fileData) || fileData.length === 0) {
       throw new Error('No files provided');
+    }
+
+    // Validate file data
+    for (const file of fileData) {
+      if (!file.cid || !file.size) {
+        throw new Error('Each file must have cid and size properties');
+      }
     }
 
     // Ensure account has registered public key
     await this.account.registerPublicKey();
 
-    // Generate CIDs and calculate total size
-    const fileData: Array<{ file: File | { name: string; size: number; arrayBuffer: () => Promise<ArrayBuffer> }; cid: string; size: number }> = [];
-    let totalSize = 0;
-
-    for (const file of files) {
-      let cid: string;
-      if (file instanceof File) {
-        cid = await SPKFile.hash(file);
-      } else {
-        // Handle file-like objects
-        const buffer = Buffer.from(await file.arrayBuffer());
-        cid = await Hash.of(buffer);
-      }
-      fileData.push({ file, cid, size: file.size });
-      totalSize += file.size;
-    }
+    // Calculate total size
+    const totalSize = fileData.reduce((sum, file) => sum + file.size, 0);
 
     // Calculate BROCA cost (all uploads are 30 days)
     const brocaCost = BrocaCalculator.cost(totalSize, 30);
@@ -390,24 +383,27 @@ export class SPKFile {
       throw new Error(`Insufficient BROCA. Required: ${brocaCost}, Available: ${availableBroca}`);
     }
 
-    // Generate unique contract ID
-    const contractId = `${this.account.username}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
     // Prepare CIDs and sizes for the direct_upload operation
     const cids = fileData.map(f => f.cid).join(',');
     const sizes = fileData.map(f => f.size).join(',');
 
-    // Create the direct upload transaction
+    // Create the direct upload transaction (contract ID will be generated backend)
     const json: any = {
       op: 'direct_upload',
       c: cids,
       s: sizes,
-      id: contractId,
     };
 
-    // Add metadata if provided
-    if (options.metadata) {
-      json['m'] = Buffer.from(JSON.stringify(options.metadata)).toString('base64');
+    // Calculate proper metadata string that matches honeycomb validation
+    const metadataString = this.calculateMetadataString(fileData, options.metadata);
+    if (metadataString) {
+      json['m'] = metadataString;
+    }
+
+    // Check if we need to chunk the payload
+    const jsonString = JSON.stringify(json);
+    if (jsonString.length > 7800) {
+      return this.directUploadChunked(fileData, options, totalSize, brocaCost);
     }
 
     // Execute the direct upload transaction
@@ -430,46 +426,263 @@ export class SPKFile {
         spkNetworkId,
         'Active',
         JSON.stringify(json),
-        `Direct upload ${files.length} file(s) (${totalSize} bytes)`,
-        async (response: any) => {
+        `Direct upload ${fileData.length} file(s) (${totalSize} bytes)`,
+        (response: any) => {
           if (response.error) {
             reject(new Error(response.error));
           } else {
-            // Upload files to IPFS after transaction is broadcast
-            try {
-              // Create a mock contract object that matches the expected format
-              const mockContract = {
-                i: contractId,
-                t: this.account.username,
-                df: fileData.map(f => f.cid),
-                files: cids,
-                api: this.account.node,
-                fosig: 'direct_upload', // This is a special case for direct uploads
-                m: options.metadata || {}
-              };
-              
-              for (const { file } of fileData) {
-                await this.uploadToIPFS(file, contractId, {}, mockContract);
-              }
-              
-              resolve({
-                success: true,
-                contractId,
-                transactionId: response.result.id,
-                files: fileData.map(f => ({
-                  cid: f.cid,
-                  size: f.size,
-                  url: `https://ipfs.dlux.io/ipfs/${f.cid}`
-                })),
-                totalSize,
-                brocaCost,
-              });
-            } catch (uploadError) {
-              reject(uploadError);
-            }
+            resolve({
+              success: true,
+              transactionId: response.result.id,
+              files: fileData.map(f => ({
+                cid: f.cid,
+                size: f.size,
+                name: f.name,
+                url: `https://ipfs.dlux.io/ipfs/${f.cid}`
+              })),
+              totalSize,
+              brocaCost,
+            });
           }
         }
       );
     });
+  }
+
+  /**
+   * Calculate metadata string in the format expected by honeycomb
+   * Format: contractData,cid1,name1,ext1,metadata1,cid2,name2,ext2,metadata2,...
+   * Length must be: cids.length * 4 + 1
+   */
+  private calculateMetadataString(
+    fileData: Array<{ cid: string; size: number; name?: string }>,
+    metadata?: any
+  ): string {
+    const parts: string[] = [];
+    
+    // Contract data (first part) - for direct uploads, use "1"
+    parts.push('1');
+    
+    // For each file, add 4 parts: cid, name, ext, metadata
+    fileData.forEach((data, index) => {
+      let baseName = data.name ? data.name.replace(/\.[^/.]+$/, '') : `file${index}`;
+      let fileExt = data.name ? data.name.split('.').pop() || '' : '';
+      
+      // Override with metadata if provided
+      if (metadata?.files?.[index]) {
+        baseName = metadata.files[index].name || baseName;
+        fileExt = metadata.files[index].ext || fileExt;
+      } else if (metadata && !metadata.files && index === 0) {
+        // Single file metadata
+        baseName = metadata.name || baseName;
+        fileExt = metadata.ext || fileExt;
+      }
+      
+      parts.push(data.cid); // CID
+      parts.push(baseName); // Name without extension
+      parts.push(fileExt); // Extension
+      
+      // File-specific metadata
+      let fileMetadata = '';
+      if (metadata) {
+        if (metadata.files && metadata.files[index]) {
+          const fileMeta = metadata.files[index];
+          
+          // Convert tags to flag if present
+          if (fileMeta.tags) {
+            const tagFlag = Array.isArray(fileMeta.tags) 
+              ? fileMeta.tags.reduce((acc: number, tag: number) => acc | tag, 0)
+              : fileMeta.tags;
+            fileMetadata += this.encodeBase64Number(tagFlag);
+          }
+          
+          // Add other metadata fields
+          if (fileMeta.labels) fileMetadata += `|${fileMeta.labels}`;
+          if (fileMeta.license) fileMetadata += `|${fileMeta.license}`;
+        } else if (typeof metadata === 'object' && !metadata.files) {
+          // Single file metadata
+          if (metadata.tags) {
+            const tagFlag = Array.isArray(metadata.tags) 
+              ? metadata.tags.reduce((acc: number, tag: number) => acc | tag, 0)
+              : metadata.tags;
+            fileMetadata += this.encodeBase64Number(tagFlag);
+          }
+          
+          if (metadata.labels) fileMetadata += `|${metadata.labels}`;
+          if (metadata.license) fileMetadata += `|${metadata.license}`;
+        }
+      }
+      
+      parts.push(fileMetadata); // Metadata for this file
+    });
+    
+    return parts.join(',');
+  }
+
+  /**
+   * Handle chunked direct upload for payloads over 7800 bytes
+   * Splits into multiple direct_upload transactions with delays
+   */
+  private async directUploadChunked(
+    fileData: Array<{ cid: string; size: number; name?: string }>,
+    options: any,
+    totalSize: number,
+    brocaCost: number
+  ): Promise<any> {
+    const spkNetworkId = this.account.node.includes('spktest') ? 'spkcc_spktest' : 'spkcc_dlux';
+    
+    // Split files into chunks that each create a separate direct_upload transaction
+    const chunks: Array<{ files: typeof fileData; chunkIndex: number }> = [];
+    let currentChunkFiles: typeof fileData = [];
+    let currentChunkIndex = 0;
+    
+    for (let i = 0; i < fileData.length; i++) {
+      currentChunkFiles.push(fileData[i]);
+      
+      // Calculate metadata for current chunk
+      const chunkMetadata = this.calculateMetadataString(currentChunkFiles, {
+        files: options.metadata?.files?.slice(currentChunkIndex, i + 1)
+      });
+      
+      // Create test direct_upload JSON to check size
+      const testJson = {
+        op: 'direct_upload',
+        c: currentChunkFiles.map(f => f.cid).join(','),
+        s: currentChunkFiles.map(f => f.size).join(','),
+        m: chunkMetadata
+      };
+      
+      // If this chunk would be too big, save the previous chunk and start a new one
+      if (JSON.stringify(testJson).length >= 7800 && currentChunkFiles.length > 1) {
+        // Remove the last file and save current chunk
+        const lastFile = currentChunkFiles.pop()!;
+        
+        chunks.push({
+          files: [...currentChunkFiles],
+          chunkIndex: currentChunkIndex
+        });
+        
+        // Start new chunk with the file that didn't fit
+        currentChunkFiles = [lastFile];
+        currentChunkIndex = i;
+      }
+    }
+    
+    // Add the last chunk
+    if (currentChunkFiles.length > 0) {
+      chunks.push({
+        files: [...currentChunkFiles],
+        chunkIndex: currentChunkIndex
+      });
+    }
+    
+    // Broadcast all chunks as separate direct_upload transactions with delays
+    const chunkResults: any[] = [];
+    const allFiles: any[] = [];
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      
+      // Calculate metadata for this chunk
+      const chunkMetadata = this.calculateMetadataString(chunk.files, {
+        files: options.metadata?.files?.slice(chunk.chunkIndex, chunk.chunkIndex + chunk.files.length)
+      });
+      
+      const chunkJson = {
+        op: 'direct_upload',
+        c: chunk.files.map(f => f.cid).join(','),
+        s: chunk.files.map(f => f.size).join(','),
+        m: chunkMetadata
+      };
+      
+      // Broadcast this chunk
+      const result = await this.broadcastDirectUpload(chunkJson, spkNetworkId, chunk.files.length, chunk.files.reduce((sum, f) => sum + f.size, 0));
+      chunkResults.push(result);
+      
+      // Add files from this chunk to the overall result
+      allFiles.push(...chunk.files.map(f => ({
+        cid: f.cid,
+        size: f.size,
+        name: f.name,
+        url: `https://ipfs.dlux.io/ipfs/${f.cid}`
+      })));
+      
+      // Add 5-second delay between chunks (except for the last one)
+      if (i < chunks.length - 1) {
+        await this.delay(5000);
+      }
+    }
+    
+    return {
+      success: true,
+      transactionIds: chunkResults.map(r => r.transactionId),
+      files: allFiles,
+      totalSize,
+      brocaCost,
+      chunked: true,
+      totalChunks: chunks.length
+    };
+  }
+
+  /**
+   * Helper method to add delays between transactions
+   */
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Broadcast a single direct_upload transaction
+   */
+  private broadcastDirectUpload(json: any, spkNetworkId: string, fileCount: number, totalSize: number): Promise<any> {
+    return new Promise((resolve, reject) => {
+      const keychain = (window as any).hive_keychain;
+      if (!keychain) {
+        reject(new Error('Hive Keychain not found'));
+        return;
+      }
+      
+      keychain.requestCustomJson(
+        this.account.username,
+        spkNetworkId,
+        'Active',
+        JSON.stringify(json),
+        `Direct upload ${fileCount} file(s) (${totalSize} bytes)`,
+        (response: any) => {
+          if (response.error) {
+            reject(new Error(response.error));
+          } else {
+            resolve({
+              success: true,
+              transactionId: response.result.id
+            });
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Encode number to Base64 using the same algorithm as honeycomb
+   */
+  private encodeBase64Number(num: number): string {
+    const glyphs64 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=";
+    
+    if (isNaN(Number(num)) || num === null || num === Number.POSITIVE_INFINITY) {
+      throw new Error("The input is not valid");
+    }
+    if (num < 0) throw new Error("Can't represent negative numbers");
+    
+    let residual = Math.floor(num);
+    let result = "";
+    
+    while (true) {
+      const char = residual % 64;
+      result = glyphs64.charAt(char) + result;
+      residual = Math.floor(residual / 64);
+      if (residual === 0) break;
+    }
+    
+    return result;
   }
 }
