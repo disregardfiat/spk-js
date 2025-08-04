@@ -33,7 +33,7 @@ describe('DirectUpload Metadata Array Support', () => {
   describe('metadata array to string conversion', () => {
     it('should accept metadata as array of objects', async () => {
       const options: DirectUploadOptions = {
-        cids: ['QmTest1', 'QmTest2'],
+        cids: ['QmTestVideo123456789', 'QmTestSegment987654321'],
         sizes: [100, 200],
         id: 'upload-123',
         metadata: [
@@ -41,7 +41,7 @@ describe('DirectUpload Metadata Array Support', () => {
             name: 'video',
             ext: 'mp4',
             path: 'Videos/movie.mp4',
-            thumbnail: 'QmThumb1',
+            thumbnail: 'QmThumbVideo123456789',
             flag: 1,
             license: 'CC-BY',
             labels: 'movie,action'
@@ -77,7 +77,7 @@ describe('DirectUpload Metadata Array Support', () => {
           ext: 'm3u8',
           path: 'master.m3u8',
           description: 'Main playlist',
-          thumbnail: 'QmThumb123',
+          thumbnail: 'QmThumbVideo12345678923',
           flag: 1 // visible
         },
         {
@@ -116,7 +116,7 @@ describe('DirectUpload Metadata Array Support', () => {
 
     it('should still accept string metadata for backward compatibility', async () => {
       const options: DirectUploadOptions = {
-        cids: ['QmTest1'],
+        cids: ['QmTestVideo123456789'],
         sizes: [100],
         id: 'upload-123',
         metadata: '1,file1,txt,0,0-MIT-test'
@@ -132,7 +132,7 @@ describe('DirectUpload Metadata Array Support', () => {
 
     it('should validate metadata array length matches CIDs', async () => {
       const options: DirectUploadOptions = {
-        cids: ['QmTest1', 'QmTest2'],
+        cids: ['QmTestVideo123456789', 'QmTestSegment987654321'],
         sizes: [100, 200],
         id: 'upload-123',
         metadata: [
@@ -149,7 +149,7 @@ describe('DirectUpload Metadata Array Support', () => {
 
     it('should handle boolean flags correctly', async () => {
       const options: DirectUploadOptions = {
-        cids: ['QmTest1', 'QmTest2'],
+        cids: ['QmTestVideo123456789', 'QmTestSegment987654321'],
         sizes: [100, 200],
         id: 'upload-123',
         metadata: [
@@ -184,7 +184,7 @@ describe('DirectUpload Metadata Array Support', () => {
 
     it('should handle complex folder structures', async () => {
       const options: DirectUploadOptions = {
-        cids: ['QmTest1', 'QmTest2', 'QmTest3'],
+        cids: ['QmTestVideo123456789', 'QmTestSegment987654321', 'QmTestDocument555666777'],
         sizes: [100, 200, 300],
         id: 'upload-123',
         metadata: [
@@ -211,15 +211,17 @@ describe('DirectUpload Metadata Array Support', () => {
       expect(result.success).toBe(true);
       
       const json = mockKeychain.broadcastCustomJson.mock.calls[0][3];
-      // The metadata should include folder structure information
-      expect(json.m).toContain('Documents');
-      expect(json.m).toContain('Images');
-      expect(json.m).toContain('Videos');
+      // The metadata should include custom subfolder structure (preset folders use indices)
+      expect(json.m).toContain('2/Work');    // Work subfolder under Documents (index 2)
+      expect(json.m).toContain('3/Vacation'); // Vacation subfolder under Images (index 3)
+      expect(json.m).toContain('.4');         // Video file in Videos folder (index 4)
+      expect(json.m).toContain('.A');         // Image file in custom Vacation subfolder
+      expect(json.m).toContain('.1');         // Document in custom Work subfolder
     });
 
     it('should handle empty metadata objects with defaults', async () => {
       const options: DirectUploadOptions = {
-        cids: ['QmTest1', 'QmTest2'],
+        cids: ['QmTestVideo123456789', 'QmTestSegment987654321'],
         sizes: [100, 200],
         id: 'upload-123',
         metadata: [
@@ -239,19 +241,19 @@ describe('DirectUpload Metadata Array Support', () => {
     it('should handle batch uploads with different metadata formats', async () => {
       const uploads: DirectUploadOptions[] = [
         {
-          cids: ['QmTest1'],
+          cids: ['QmTestVideo123456789'],
           sizes: [100],
           id: 'upload-1',
           metadata: [{ name: 'file1', ext: 'txt' }]
         },
         {
-          cids: ['QmTest2'],
+          cids: ['QmTestSegment987654321'],
           sizes: [200],
           id: 'upload-2',
           metadata: '1,file2,pdf,0,0--'
         },
         {
-          cids: ['QmTest3'],
+          cids: ['QmTestDocument555666777'],
           sizes: [300],
           id: 'upload-3',
           metadata: [{ name: 'file3', ext: 'jpg', hidden: true }]
@@ -269,7 +271,7 @@ describe('DirectUpload Metadata Array Support', () => {
   describe('error handling', () => {
     it('should reject invalid metadata types', async () => {
       const options: DirectUploadOptions = {
-        cids: ['QmTest1'],
+        cids: ['QmTestVideo123456789'],
         sizes: [100],
         id: 'upload-123',
         metadata: 123 as any // Invalid type
@@ -285,7 +287,7 @@ describe('DirectUpload Metadata Array Support', () => {
       mockKeychain.broadcastCustomJson.mockRejectedValue(new Error('User cancelled'));
 
       const options: DirectUploadOptions = {
-        cids: ['QmTest1'],
+        cids: ['QmTestVideo123456789'],
         sizes: [100],
         id: 'upload-123',
         metadata: [{ name: 'file1', ext: 'txt' }]
@@ -301,7 +303,7 @@ describe('DirectUpload Metadata Array Support', () => {
       mockAccount.calculateBroca.mockResolvedValue(50); // Not enough
 
       const options: DirectUploadOptions = {
-        cids: ['QmTest1'],
+        cids: ['QmTestVideo123456789'],
         sizes: [100],
         id: 'upload-123',
         metadata: [{ name: 'file1', ext: 'txt' }]

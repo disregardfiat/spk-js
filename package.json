@@ -1,6 +1,6 @@
 {
   "name": "@disregardfiat/spk-js",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "JavaScript library for interacting with SPK Network decentralized storage",
   "main": "dist/spk-js.cjs.js",
   "module": "dist/spk-js.esm.js",
