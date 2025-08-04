@@ -1,12 +1,28 @@
 import { SPKAccount } from '../core/account';
 import { SPKAPI } from '../core/api';
 import { KeychainAdapter } from '../core/keychain-adapter';
+import { buildMetadataFromFiles, SimpleFileData } from './metadata';
+
+export interface FileMetadataObject {
+  name?: string;
+  ext?: string;
+  path?: string;
+  description?: string;
+  thumbnail?: string;
+  flag?: number;
+  encrypted?: boolean;
+  hidden?: boolean;
+  nsfw?: boolean;
+  executable?: boolean;
+  license?: string;
+  labels?: string;
+}
 
 export interface DirectUploadOptions {
   cids: string[]; // Array of IPFS CIDs
   sizes: number[]; // Array of file sizes in bytes
   id: string; // Unique identifier for this upload
-  metadata?: string; // Optional metadata string
+  metadata?: string | FileMetadataObject[]; // Metadata as string or array of objects
 }
 
 export interface DirectUploadResult {
@@ -28,6 +44,40 @@ export class DirectUpload {
     private api: SPKAPI,
     private keychainAdapter: KeychainAdapter | null
   ) {}
+
+  /**
+   * Convert metadata array to string format
+   * @param metadataArray - Array of file metadata objects
+   * @param cids - Array of CIDs in the same order as metadata
+   * @returns Formatted metadata string
+   */
+  private convertMetadataToString(metadataArray: FileMetadataObject[], cids: string[]): string {
+    // Convert to SimpleFileData format expected by metadata builder
+    const files: SimpleFileData[] = cids.map((cid, index) => {
+      const meta = metadataArray[index] || {};
+      
+      // Handle flags - convert number flag to boolean properties
+      const flagNum = meta.flag || 0;
+      const hidden = (flagNum === 2) || meta.hidden || false; // flag 2 means hidden
+      
+      return {
+        cid,
+        name: meta.name || '',
+        ext: meta.ext || '',
+        path: meta.path || '',
+        thumb: meta.thumbnail || '',
+        encrypted: meta.encrypted || false,
+        hidden,
+        nsfw: meta.nsfw || false,
+        executable: meta.executable || false,
+        license: meta.license || '',
+        labels: meta.labels || '',
+      };
+    });
+
+    // Use the existing metadata builder from metadata.ts
+    return buildMetadataFromFiles(files);
+  }
 
   /**
    * Direct upload files to the network
@@ -66,14 +116,20 @@ export class DirectUpload {
       };
     }
 
+    // Convert metadata array to string if needed
+    let metadataString: string | undefined;
+    if (Array.isArray(options.metadata)) {
+      metadataString = this.convertMetadataToString(options.metadata, options.cids);
+    } else {
+      metadataString = options.metadata;
+    }
+
     // Build transaction
-    const customJsonId = 'spk-direct-upload';
+    const customJsonId = 'spkccT_direct_upload';
     const json = {
       c: options.cids.join(','),
       s: options.sizes.join(','),
-      id: options.id,
-      m: options.metadata,
-      from: this.account.username,
+      m: metadataString,
     };
 
     try {
@@ -192,13 +248,29 @@ export class DirectUpload {
 
     // Validate metadata if provided
     if (options.metadata) {
-      const expectedSize = options.cids.length * 4 + 1;
-      const actualSize = options.metadata.split(',').length;
+      if (Array.isArray(options.metadata)) {
+        // For array metadata, check that we have metadata for each file
+        if (options.metadata.length !== options.cids.length) {
+          return {
+            valid: false,
+            error: `Metadata array length (${options.metadata.length}) must match CIDs length (${options.cids.length})`,
+          };
+        }
+      } else if (typeof options.metadata === 'string') {
+        // For string metadata, validate the format
+        const expectedSize = options.cids.length * 4 + 1;
+        const actualSize = options.metadata.split(',').length;
 
-      if (actualSize !== expectedSize) {
+        if (actualSize !== expectedSize) {
+          return {
+            valid: false,
+            error: `Invalid metadata size. Expected ${expectedSize}, got ${actualSize}`,
+          };
+        }
+      } else {
         return {
           valid: false,
-          error: `Invalid metadata size. Expected ${expectedSize}, got ${actualSize}`,
+          error: 'Metadata must be either a string or an array of objects',
         };
       }
     }

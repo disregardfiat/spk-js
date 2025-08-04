@@ -1071,3 +1071,6 @@ export {
   NodeStatus,
   ExtendResult,
 } from './storage/node-operations';
+
+// Export direct upload types
+export { DirectUploadOptions, DirectUploadResult, FileMetadataObject } from './storage/direct-upload';

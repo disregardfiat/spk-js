@@ -1,14 +1,11 @@
-import { SPKFile } from '../../../src/storage/file';
+import { DirectUpload, DirectUploadOptions } from '../../../src/storage/direct-upload';
 import { SPKAccount } from '../../../src/core/account';
-import Hash from 'ipfs-only-hash';
+import { SPKAPI } from '../../../src/core/api';
+import { KeychainAdapter } from '../../../src/core/keychain-adapter';
 
 jest.mock('../../../src/core/account');
-jest.mock('../../../src/tokens/broca', () => ({
-  BrocaCalculator: {
-    cost: jest.fn().mockReturnValue(100)
-  }
-}));
-jest.mock('ipfs-only-hash');
+jest.mock('../../../src/core/api');
+jest.mock('../../../src/core/keychain-adapter');
 
 // Mock FileReader for Jest environment
 const mockFileReader = {

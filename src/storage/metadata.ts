@@ -176,17 +176,23 @@ export function parseMetadataString(metadataString: string, cids: string[]): Met
       // Check if it's a simple folder name (top-level custom folder)
       if (!folderDef.includes('/')) {
         // This is a top-level custom folder
-        const folderIndex = getCustomFolderIndex(customFolderPosition);
-        const folderInfo: FolderInfo = {
-          index: folderIndex,
-          name: folderDef,
-          parent: '0', // Root parent
-          fullPath: folderDef,
-        };
+        try {
+          const validatedName = validateFolderName(folderDef);
+          const folderIndex = getCustomFolderIndex(customFolderPosition);
+          const folderInfo: FolderInfo = {
+            index: folderIndex,
+            name: validatedName,
+            parent: '0', // Root parent
+            fullPath: validatedName,
+          };
 
-        folders.push(folderInfo);
-        folderMap.set(folderIndex, folderInfo);
-        customFolderPosition++;
+          folders.push(folderInfo);
+          folderMap.set(folderIndex, folderInfo);
+          customFolderPosition++;
+        } catch (e) {
+          // Skip invalid folder names during parsing
+          console.warn(`Invalid folder name "${folderDef}": ${e}`);
+        }
         continue;
       }
 
@@ -195,19 +201,25 @@ export function parseMetadataString(metadataString: string, cids: string[]): Met
       const parentIndex = folderDef.substring(0, slashIndex);
       const folderName = folderDef.substring(slashIndex + 1);
 
-      // For subfolders, generate the next index
-      const folderIndex = getCustomFolderIndex(customFolderPosition);
+      try {
+        const validatedName = validateFolderName(folderName);
+        // For subfolders, generate the next index
+        const folderIndex = getCustomFolderIndex(customFolderPosition);
 
-      const folderInfo: FolderInfo = {
-        index: folderIndex,
-        name: folderName,
-        parent: parentIndex,
-        fullPath: buildFolderPath(parentIndex, folderName, folderMap),
-      };
+        const folderInfo: FolderInfo = {
+          index: folderIndex,
+          name: validatedName,
+          parent: parentIndex,
+          fullPath: buildFolderPath(parentIndex, validatedName, folderMap),
+        };
 
-      folders.push(folderInfo);
-      folderMap.set(folderIndex, folderInfo);
-      customFolderPosition++;
+        folders.push(folderInfo);
+        folderMap.set(folderIndex, folderInfo);
+        customFolderPosition++;
+      } catch (e) {
+        // Skip invalid folder names during parsing
+        console.warn(`Invalid subfolder name "${folderName}": ${e}`);
+      }
     }
   }
 
@@ -305,12 +317,14 @@ export function buildMetadataString(
     })
     .join('|');
 
-  // Header format: version{encryptionKeys}|{folderList}
+  // Header format: version{#encryptionKeys}|{folderList} (only include | if there are folders)
   let header = version;
   if (encryptionKeys) {
-    header += encryptionKeys;
+    header += '#' + encryptionKeys;
   }
-  header += '|' + folderList;
+  if (folderList) {
+    header += '|' + folderList;
+  }
 
   // Build file entries in CID order
   const sortedCids = Array.from(files.keys()).sort();
@@ -483,6 +497,25 @@ export function truncateFilename(filename: string): string {
 }
 
 /**
+ * Validate and normalize folder name (2-16 chars, no commas)
+ */
+export function validateFolderName(folderName: string): string {
+  if (!folderName || folderName.length < 2) {
+    throw new Error('Folder name must be at least 2 characters long');
+  }
+  
+  if (folderName.length > 16) {
+    throw new Error('Folder name must be no more than 16 characters long');
+  }
+  
+  if (folderName.includes(',')) {
+    throw new Error('Folder name cannot contain commas');
+  }
+  
+  return folderName;
+}
+
+/**
  * Simple interface for building metadata from file data
  */
 export interface SimpleFileData {
@@ -535,13 +568,14 @@ export function buildMetadataFromFiles(
         if (parentPath === '' && PRESET_FOLDERS[folderName]) {
           pathToFolderMap.set(currentPath, PRESET_FOLDERS[folderName]);
         } else {
-          // Custom folder
+          // Custom folder - validate folder name
+          const validatedFolderName = validateFolderName(folderName);
           const index = customFolderIndex[customIndex++];
           const parentIndex = pathToFolderMap.get(parentPath) || '0';
 
           folders.push({
             index,
-            name: folderName,
+            name: validatedFolderName,
             parent: parentIndex,
             fullPath: currentPath,
           });
